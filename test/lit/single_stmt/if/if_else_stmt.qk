@@ -1,0 +1,11 @@
+// RUN: %quick %s | %file-check %s
+
+if True { print True; }
+else { print False; }
+
+// CHECK: 1
+
+if False { print True; }
+else { print False; }
+
+// CHECK: 0

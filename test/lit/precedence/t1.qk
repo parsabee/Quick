@@ -1,0 +1,7 @@
+// RUN: %quick %s | %file-check %s
+
+// CHECK: 5
+print 1 + 2 * 2;
+
+// CHECK: 2
+print 4 - 4 / 2;

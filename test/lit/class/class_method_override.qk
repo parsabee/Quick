@@ -1,0 +1,25 @@
+// RUN: %quick %s | %file-check %s
+
+class Animal() {
+    fn makeSound() -> String { return "None"; }
+}
+
+class Cat() extends Animal {
+    Animal();
+    fn makeSound() -> String { return "Meow"; }
+}
+
+class Dog() extends Animal {
+    Animal();
+    fn makeSound() -> String { return "Woof"; }
+}
+
+animal: Animal = Cat();
+
+// CHECK: Meow
+print animal.makeSound();
+
+animal = Dog();
+
+// CHECK: Woof
+print animal.makeSound();

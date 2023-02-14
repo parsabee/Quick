@@ -1,0 +1,19 @@
+// RUN: %quick %s | %file-check %s
+
+if True {
+    a = "String";
+} else {
+    a = None;
+}
+
+// CHECK: String
+print a;
+
+if False {
+    a = "String";
+} else {
+    a = None;
+}
+
+// CHECK: None
+print a;

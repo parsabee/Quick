@@ -1,0 +1,10 @@
+// RUN: %quick %s | %file-check %s
+
+a: Nothing = None;
+b: Object = None;
+
+// CHECK: 0
+print a != b;
+
+// CHECK: 1
+print a == b;

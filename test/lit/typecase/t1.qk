@@ -1,0 +1,15 @@
+// RUN: %quick %s | %file-check %s
+class A() {}
+class B() extends A {A();}
+class C() extends A {A();}
+
+obj: A = C();
+typecase obj {
+    b: B {
+        print "B";
+    }
+    c: C {
+        print "C";
+    }
+}
+//CHECK: C

@@ -1,0 +1,11 @@
+// RUN: %quick %s | %file-check %s
+
+// CHECK: 0
+print 10 < 2;
+
+// CHECK: 1
+print 2 < 10;
+
+// CHECK: 0
+
+print 10 < 10;

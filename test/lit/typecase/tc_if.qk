@@ -1,0 +1,21 @@
+// RUN: %quick %s | %file-check %s
+class A() {}
+class B() extends A {A();}
+class C() extends A {A();}
+
+if False {
+    a = C();
+} else {
+    a = B();
+}
+
+typecase a {
+    b: B {
+        print "B";
+    }
+    c: C {
+        print "C";
+    }
+}
+
+// CHECK: B

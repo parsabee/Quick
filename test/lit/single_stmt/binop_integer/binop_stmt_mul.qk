@@ -1,0 +1,4 @@
+// RUN: %quick %s | %file-check %s
+
+// CHECK: 20
+print 10 * 2;

@@ -1,0 +1,21 @@
+// RUN: %quick %s | %file-check %s
+class Pt() {
+    this.x: Float = 0.0;
+    fn setX(x: Float) { this.x = x; }
+    fn getX() -> Float { return this.x; }
+}
+
+class Pt2D() extends Pt {
+    Pt();
+    this.y: Float = 0.0;
+    fn setY(y: Float) { this.y = y; }
+    fn getY() -> Float { return this.y; }
+}
+
+
+pt = Pt2D();
+pt.setX(1.5);
+pt.setY(2.5);
+
+// CHECK: 1.5 2.5
+print pt.getX(), pt.getY();

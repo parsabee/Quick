@@ -1,0 +1,26 @@
+// RUN: %quick %s | %file-check %s
+class A(a: Integer) {
+    this.a = a;
+}
+
+class B(a: Integer, b: String) extends A {
+    A(a);
+    this.b = b;
+}
+
+class C(a: Integer, b: String, c: Object) extends B {
+    B(a, b);
+    this.c = c;
+}
+
+
+c = C(5, "HelloWorld", None);
+
+// CHECK: 5
+print c.a;
+
+// CHECK: HelloWorld
+print c.b;
+
+// CHECK: None
+print c.c;

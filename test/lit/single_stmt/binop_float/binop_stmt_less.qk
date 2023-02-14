@@ -1,0 +1,10 @@
+// RUN: %quick %s | %file-check %s
+
+// CHECK: 0
+print 10.9 < 10.80;
+
+// CHECK: 0
+print 10.9 < 10.9;
+
+// CHECK: 1
+print 10.9 < 11.0;

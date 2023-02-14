@@ -1,0 +1,10 @@
+// RUN: %quick %s | %file-check %s
+
+// CHECK: 0
+print "Hello" == "hello";
+
+// CHECK: 1
+print "Hello" != "hello";
+
+// CHECK: 1
+print "World" == "World";

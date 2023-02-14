@@ -1,0 +1,9 @@
+// RUN: %quick %s | %file-check %s
+
+if (True) { print 1; }
+// CHECK: 1
+
+if (False) { print 1; }
+// CHECK-NEXT: 0
+print 0;
+

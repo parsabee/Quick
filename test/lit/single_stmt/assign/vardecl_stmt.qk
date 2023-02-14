@@ -1,0 +1,5 @@
+// RUN: %quick %s | %file-check %s
+
+a: Integer = 1;
+// CHECK: 1
+print a;

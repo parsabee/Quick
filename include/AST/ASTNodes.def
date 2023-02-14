@@ -1,0 +1,88 @@
+//===--- ASTNodes.def --------------------------------------------*- C++ -*-===//
+//
+// Under MIT License, see: <project root>/LICENSE.txt
+// Copyright (c) 2023 Parsa Bagheri
+//
+//===----------------------------------------------------------------------===//
+//
+// This file contains all AST nodes, and is a facility for generating code using
+// X macro pattern
+//
+//===----------------------------------------------------------------------===//
+
+/// Defines a visit method for the abstract nodes of the AST
+#ifdef ABSTRACT_NODE_HANDLER
+#define AST_NODES                                                              \
+  ABSTRACT_NODE_HANDLER(Decl)                                                  \
+  ABSTRACT_NODE_HANDLER(LValue)                                                \
+  ABSTRACT_NODE_HANDLER(Statement)                                             \
+  ABSTRACT_NODE_HANDLER(Expression)
+
+AST_NODES
+#undef AST_NODES
+#undef ABSTRACT_NODE_HANDLER
+#endif
+
+/// Defines visit methods for all concrete nodes of the AST
+#ifdef NODE_HANDLER
+#define EXPR_NODE_HANDLER NODE_HANDLER
+#define STMT_NODE_HANDLER NODE_HANDLER
+#endif
+
+/// Defines visit method for all Expression subtypes in the AST
+#ifdef EXPR_NODE_HANDLER
+#define AST_NODES                                                              \
+  EXPR_NODE_HANDLER(IntegerLiteral)                                            \
+  EXPR_NODE_HANDLER(FloatLiteral)                                              \
+  EXPR_NODE_HANDLER(BoolLiteral)                                               \
+  EXPR_NODE_HANDLER(StringLiteral)                                             \
+  EXPR_NODE_HANDLER(NothingLiteral)                                            \
+  EXPR_NODE_HANDLER(IdentifierExpression)                                      \
+  EXPR_NODE_HANDLER(BinaryOperator)                                            \
+  EXPR_NODE_HANDLER(UnaryOperator)                                             \
+  EXPR_NODE_HANDLER(Call)                                                      \
+  EXPR_NODE_HANDLER(MemberAccess)
+
+AST_NODES
+#undef AST_NODES
+#undef EXPR_NODE_HANDLER
+#endif
+
+/// Defines visit method for all Statement subtypes in the AST
+#ifdef STMT_NODE_HANDLER
+#define AST_NODES                                                              \
+  STMT_NODE_HANDLER(CompoundStmt)                                              \
+  STMT_NODE_HANDLER(Assignment)                                                \
+  STMT_NODE_HANDLER(StaticAssignment)                                          \
+  STMT_NODE_HANDLER(ValueStmt)                                                 \
+  STMT_NODE_HANDLER(Return)                                                    \
+  STMT_NODE_HANDLER(If)                                                        \
+  STMT_NODE_HANDLER(While)                                                     \
+  STMT_NODE_HANDLER(PrintStatement)                                            \
+  STMT_NODE_HANDLER(TypeSwitch)                                                \
+  STMT_NODE_HANDLER(TypeSwitchCase)
+
+AST_NODES
+#undef AST_NODES
+#undef STMT_NODE_HANDLER
+#endif
+
+/// Defines visit method for leftover nodes (!Stmt && !Expr)
+#ifdef NODE_HANDLER
+#define AST_NODES                                                              \
+  NODE_HANDLER(TranslationUnit)                                                \
+  NODE_HANDLER(Identifier)                                                     \
+  NODE_HANDLER(VarDecl)                                                        \
+  NODE_HANDLER(StaticMemberDecl)                                               \
+  NODE_HANDLER(Arguments)                                                      \
+  NODE_HANDLER(Parameters)                                                     \
+  NODE_HANDLER(Class)                                                          \
+  NODE_HANDLER(Classes)                                                        \
+  NODE_HANDLER(Method)                                                         \
+  NODE_HANDLER(Methods)                                                        \
+  NODE_HANDLER(TypeAlternatives)
+
+AST_NODES
+#undef AST_NODES
+#undef NODE_HANDLER
+#endif

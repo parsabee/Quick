@@ -1,0 +1,376 @@
+%skeleton "lalr1.cc" // -*- C++ -*-
+%require "3.7.1"
+%defines
+
+%define api.token.raw
+
+%define api.token.constructor
+%define api.value.type variant
+%define parse.assert
+
+%code requires {
+  #include <string>
+  #include <iostream>
+  #include <memory>
+  #include "AST/AST.hpp"
+  #include "Parser.ypp.hpp"
+
+  namespace quick::parser
+  {
+    class Driver;
+  }
+
+  using namespace quick::ast;
+  template <typename T> using ptr = std::unique_ptr<T>;
+}
+
+// The parsing context.
+%param { quick::parser::Driver& drv }
+%locations
+
+%define parse.trace
+%define parse.error detailed
+%define parse.lac full
+
+%code {
+  #include "Parser/Driver.hpp"
+
+  // Creates a location object
+  #define loc(BEGIN_TOK, END_TOK) \
+    Location(BEGIN_TOK.begin.line, BEGIN_TOK.begin.column, END_TOK.end.line, END_TOK.end.column)
+}
+
+%define api.token.prefix {TOK_}
+%token
+  ASSIGN  "="
+  MINUS   "-"
+  PLUS    "+"
+  STAR    "*"
+  SLASH   "/"
+  MOD     "%"
+  LESS   "<"
+  MORE   ">"
+  LESSEQ   "<="
+  MOREEQ   ">="
+  EQUAL    "=="
+  NOT_EQUAL "!="
+  NOT     "!"
+  COLON   ":"
+  DOT     "."
+  SEMICOLON ";"
+  COMMA     ","
+  LPAREN  "("
+  RPAREN  ")"
+  LBRACK  "{"
+  RBRACK  "}"
+  ARROW "->"
+;
+
+// associating terminals with types
+%token <long> INT
+%token <double> FLOAT
+%token <bool> BOOL
+%token <std::string> STRING_LIT
+%token <std::string> NONE
+%token <std::string> IDENT
+%token <std::string> CLASS
+%token <std::string> EXTENDS
+%token <std::string> FN
+%token <std::string> RETURN
+%token <std::string> IF
+%token <std::string> ELIF
+%token <std::string> ELSE
+%token <std::string> WHILE
+%token <std::string> PRINT
+%token <std::string> TYPECASE
+%token <std::string> CASE
+
+%type <ptr<TranslationUnit>> translationUnit
+%type <ptr<Statement>> statement
+%type <ptr<Identifier>> identifier
+%type <ptr<CompoundStmt>> compoundStmt
+%type <ptr<Decl>> decl
+%type <ptr<VarDecl>> varDecl
+%type <ptr<IdentifierExpression>> identifierExpression
+%type <ptr<StaticMemberDecl>> memberDecl
+%type <ptr<Assignment>> assignment
+%type <ptr<StaticAssignment>> staticAssignment
+%type <ptr<Return>> returnStmt
+%type <ptr<If>> ifStmt
+%type <ptr<While>> whileStmt
+%type <ptr<CompoundStmt>> optElseIf
+%type <BinaryOperator::Operator> relationalOperator
+%type <ptr<Expression>> primaryExpression
+%type <ptr<Expression>> unaryExpression
+%type <ptr<MemberAccess>> memberAccessExpression
+%type <ptr<Expression>> additiveExpression
+%type <ptr<Expression>> multiplicativeExpression
+%type <ptr<Expression>> callExpression
+%type <ptr<Expression>> expression
+%type <ptr<Expression>> relationalExpression
+%type <ptr<LValue>> lvalueExpression
+%type <UnaryOperator::Operator> unaryOperator
+%type <ptr<Arguments>> args
+%type <ptr<Arguments>> argsNonEmpty
+%type <ptr<Parameters>> params
+%type <ptr<Parameters>> paramsNonEmpty
+%type <ptr<Parameters>> optionalParams
+%type <ptr<Method>> method
+%type <ptr<Methods>> methods
+%type <ptr<Methods>> methodsNonEmpty
+%type <ptr<Class>> class
+%type <ptr<Classes>> classes
+%type <ptr<Classes>> classesNonEmpty
+%type <ptr<TypeAlternatives>> typeAlts
+%type <ptr<TypeSwitchCase>> switchCase
+%type <ptr<TypeSwitch>> typeSwitchStmt
+%%
+
+%start translationUnit;
+
+translationUnit : classes compoundStmt
+                                    { $$ = std::make_unique<TranslationUnit>(loc(@1, @1), std::move($1), std::move($2));
+                                      drv.setRoot(std::move($$));
+                                    }
+;
+
+compoundStmt: %empty                { $$ = std::make_unique<CompoundStmt>(loc(@$, @$)); }
+    | compoundStmt statement        { $$ = std::move($1);
+                                      if ($2) // can be null (empty stmt ";")
+                                        $$->push_back(std::move($2));
+                                    }
+    ;
+
+identifier: IDENT                   { $$ = std::make_unique<Identifier>(loc(@1, @1), $1); }
+    ;
+
+varDecl: identifierExpression ":" identifier
+                                    { $$ = std::make_unique<VarDecl>(loc(@1, @3), std::move($1), std::move($3)); }
+    ;
+
+memberDecl: memberAccessExpression ":" identifier
+                                    { $$ = std::make_unique<StaticMemberDecl>(loc(@1, @3), std::move($1),
+                                                                                           std::move($3)); }
+    ;
+
+decl: varDecl                       { $$ = std::move($1); }
+    | memberDecl                    { $$ = std::move($1); }
+    ;
+
+staticAssignment: decl "=" expression
+                                    { $$ = std::make_unique<StaticAssignment>(loc(@1, @3), std::move($1),
+                                                                                           std::move($3)); }
+    ;
+
+assignment: memberAccessExpression "=" expression
+                                    { $$ = std::make_unique<Assignment>(loc(@1, @3),std::move($1), std::move($3)); }
+    | identifierExpression "=" expression
+                                    { $$ = std::make_unique<Assignment>(loc(@1, @3),std::move($1), std::move($3)); }
+    ;
+
+returnStmt: RETURN expression       { $$ = std::make_unique<Return>(loc(@1, @2), std::move($2)); }
+    | RETURN                        { $$ = std::make_unique<Return>(loc(@1, @1), nullptr); }
+    ;
+
+ifStmt: IF expression "{" compoundStmt "}" optElseIf
+                                    { $$ = std::make_unique<If>(loc(@1, @6), std::move($2), std::move($4),
+                                                                                            std::move($6)); }
+    ;
+
+optElseIf: ELIF expression "{" compoundStmt "}" optElseIf
+                                    {
+                                      $$ = std::make_unique<CompoundStmt>(loc(@1, @6));
+                                      auto IfStmt = std::make_unique<If>(loc(@1, @6), std::move($2), std::move($4),
+                                                                                                     std::move($6));
+                                      $$->push_back(std::move(IfStmt));
+                                    }
+    | ELSE "{" compoundStmt "}"     { $$ = std::move($3); }
+    | %empty                        { $$ = nullptr; }
+    ;
+
+whileStmt: WHILE expression "{" compoundStmt "}"
+                                    { $$ = std::make_unique<While>(loc(@1, @5), std::move($2), std::move($4)); }
+    ;
+
+statement: ";"                      { ; }
+    | expression ";"                { $$ = std::make_unique<ValueStmt>(loc(@1, @2), std::move($1)); }
+    | assignment ";"                { $$ = std::move($1); }
+    | staticAssignment ";"          { $$ = std::move($1); }
+    | returnStmt ";"                { $$ = std::move($1); }
+    | ifStmt                        { $$ = std::move($1); }
+    | whileStmt                     { $$ = std::move($1); }
+    | PRINT args ";"                { $$ = std::make_unique<PrintStatement>(loc(@1, @3), std::move($2)); }
+    | typeSwitchStmt                { $$ = std::move($1); }
+    ;
+
+relationalOperator:
+      "<"                           { $$ = BinaryOperator::Operator::Less; }
+    | ">"                           { $$ = BinaryOperator::Operator::Greater; }
+    | "<="                          { $$ = BinaryOperator::Operator::LessEqual; }
+    | ">="                          { $$ = BinaryOperator::Operator::GreaterEqual; }
+    | "=="                          { $$ = BinaryOperator::Operator::Equals; }
+    | "!="                          { $$ = BinaryOperator::Operator::NotEquals; }
+    ;
+
+args: argsNonEmpty                  { $$ = std::move($1); }
+    | %empty                        { $$ = std::make_unique<Arguments>(loc(@$, @$)); }
+    ;
+
+argsNonEmpty : expression           { $$ = std::make_unique<Arguments>(loc(@1, @1));
+                                      $$->push_back(std::move($1)); }
+    | argsNonEmpty "," expression   { $1->push_back(std::move($3)); $$ = std::move($1); }
+    ;
+
+params: paramsNonEmpty              { $$ = std::move($1); }
+    | %empty                        { $$ = std::make_unique<Parameters>(loc(@$, @$)); }
+    ;
+
+paramsNonEmpty : varDecl            { $$ = std::make_unique<Parameters>(loc(@1, @1));
+                                      $$->push_back(std::move($1)); }
+    | paramsNonEmpty "," varDecl    { $1->push_back(std::move($3)); $$ = std::move($1); }
+    ;
+
+method: FN identifier "(" params ")" "->" identifier "{" compoundStmt "}"
+                                    { $$ = std::make_unique<Method>(
+                                          loc(@1, @10), std::move($4), std::move($2), std::move($7),std::move($9));
+                                    }
+    | FN identifier "(" params ")" "{" compoundStmt "}"
+                                    { $$ = std::make_unique<Method>(
+                                          loc(@1, @8), std::move($4), std::move($2),
+                                          std::make_unique<Identifier>(loc(@1, @1), "Nothing"),
+                                          std::move($7));
+                                    }
+    ;
+
+methods: methodsNonEmpty            { $$ = std::move($1); }
+    | %empty                        { $$ = std::make_unique<Methods>(loc(@$, @$)); }
+    ;
+
+methodsNonEmpty : method            { $$ = std::make_unique<Methods>(loc(@1, @1)); $$->push_back(std::move($1)); }
+    | methodsNonEmpty method        { $1->push_back(std::move($2)); $$ = std::move($1); }
+    ;
+
+optionalParams: %empty              { $$ = std::make_unique<Parameters>(loc(@$, @$)); }
+    | "(" params ")"                { $$ = std::move($2); }
+    ;
+
+class : CLASS identifier optionalParams "{" compoundStmt methods "}"
+                                    {
+                                      $$ = std::make_unique<Class>(loc(@1, @7), std::move($6),
+                                              std::make_unique<Identifier>(loc(@2, @2), $2->getName()),
+                                              std::make_unique<Method>(loc(@5, @5), std::move($3),
+                                              std::make_unique<Identifier>(loc(@2, @2), $2->getName()),
+                                              std::move($2), std::move($5)));
+                                    }
+    | CLASS identifier "(" params ")" EXTENDS identifier "{" compoundStmt methods "}"
+                                    {
+                                      $$ = std::make_unique<Class>(loc(@1, @11), std::move($10),
+                                              std::make_unique<Identifier>(loc(@2, @2), $2->getName()),
+                                              std::make_unique<Method>(loc(@9, @9), std::move($4),
+                                              std::make_unique<Identifier>(loc(@2, @2), $2->getName()),
+                                              std::move($2), std::move($9)), std::move($7));
+                                    }
+
+
+classes: classesNonEmpty            { $$ = std::move($1); }
+    | %empty                        { $$ = std::make_unique<Classes>(loc(@$, @$)); }
+    ;
+
+classesNonEmpty : class             { $$ = std::make_unique<Classes>(loc(@1, @1));
+                                      $$->push_back(std::move($1)); }
+    | classesNonEmpty class         { $1->push_back(std::move($2)); $$ = std::move($1); }
+    ;
+
+identifierExpression:
+      identifier                    { $$ = std::make_unique<IdentifierExpression>(loc(@1, @1), std::move($1)); }
+    ;
+
+memberAccessExpression:
+      identifierExpression "." identifier
+                                    { $$ = std::make_unique<MemberAccess>(loc(@1, @3), std::move($3), std::move($1)); }
+    | memberAccessExpression "." identifier
+                                    { $$ = std::make_unique<MemberAccess>(loc(@1, @3), std::move($3), std::move($1)); }
+    ;
+
+lvalueExpression:
+      identifierExpression          { $$ = std::move($1); }
+    | memberAccessExpression        { $$ = std::move($1); }
+    ;
+
+callExpression:
+      lvalueExpression              { $$ = std::move($1); }
+    | lvalueExpression "(" args ")" { $$ = std::make_unique<Call>(loc(@1, @4), std::move($1), std::move($3)); }
+    ;
+
+primaryExpression:
+      INT                           { $$ = std::make_unique<IntegerLiteral>(loc(@1, @1), $1); }
+    | FLOAT                         { $$ = std::make_unique<FloatLiteral>(loc(@1, @1), $1); }
+    | BOOL                          { $$ = std::make_unique<BoolLiteral>(loc(@1, @1), $1); }
+    | NONE                          { $$ = std::make_unique<NothingLiteral>(loc(@1, @1)); }
+    | STRING_LIT                    { $$ = std::make_unique<StringLiteral>(loc(@1, @1), $1); }
+    | callExpression                { $$ = std::move($1); }
+    ;
+
+unaryOperator: "!"                  { $$ = UnaryOperator::Operator::Not; }
+    | "-"                           { $$ = UnaryOperator::Operator::Neg; }
+    ;
+
+unaryExpression:
+      primaryExpression             { $$ = std::move($1); }
+    | unaryOperator primaryExpression
+                                    { $$ = std::make_unique<UnaryOperator>(loc(@1, @2), $1, std::move($2)); }
+    | unaryOperator "(" expression ")"
+                                    { $$ = std::make_unique<UnaryOperator>(loc(@1, @4), $1, std::move($3)); }
+    ;
+
+multiplicativeExpression:
+      unaryExpression               { $$ = std::move($1); }
+    | multiplicativeExpression "*" unaryExpression
+                                    { $$ = std::make_unique<BinaryOperator>(loc(@1, @3),
+                                            BinaryOperator::Operator::Times, std::move($1),std::move($3)); }
+    | multiplicativeExpression "/" unaryExpression
+                                    { $$ = std::make_unique<BinaryOperator>(loc(@1, @3),
+                                            BinaryOperator::Operator::Divide, std::move($1),std::move($3)); }
+    | multiplicativeExpression "%" unaryExpression
+                                    { $$ = std::make_unique<BinaryOperator>(loc(@1, @3),
+                                            BinaryOperator::Operator::Modulo, std::move($1),std::move($3)); }
+    ;
+
+additiveExpression:
+      multiplicativeExpression      { $$ = std::move($1); }
+    | additiveExpression "+" multiplicativeExpression
+                                    { $$ = std::make_unique<BinaryOperator>(loc(@1, @3),
+                                             BinaryOperator::Operator::Plus, std::move($1),std::move($3)); }
+    | additiveExpression "-" multiplicativeExpression
+                                    { $$ = std::make_unique<BinaryOperator>(loc(@1, @3),
+                                             BinaryOperator::Operator::Minus, std::move($1),std::move($3)); }
+    ;
+
+relationalExpression:
+      additiveExpression            { $$ = std::move($1); }
+    | relationalExpression relationalOperator additiveExpression
+                                    { $$ = std::make_unique<BinaryOperator>(loc(@1, @3), $2, std::move($1),
+                                                                                             std::move($3)); }
+    ;
+
+expression: relationalExpression    { $$ = std::move($1); }
+    | "(" expression ")"            { $$ = std::move($2); }
+    ;
+
+switchCase: varDecl "{" compoundStmt "}"
+                                    { $$ = std::make_unique<TypeSwitchCase>(loc(@1, @4), std::move($1),
+                                                                                         std::move($3)); }
+    ;
+
+typeAlts: %empty                    { $$ = std::make_unique<TypeAlternatives>(loc(@$, @$)); }
+    | typeAlts switchCase           { $$ = std::move($1); $$->push_back(std::move($2)); }
+    ;
+
+typeSwitchStmt: TYPECASE lvalueExpression "{" typeAlts "}"
+                                    { $$ = std::make_unique<TypeSwitch>(loc(@1, @5), std::move($2), std::move($4)); }
+    ;
+%%
+
+void yy::parser::error (const location_type& l, const std::string& m) {
+  std::cerr << "error @" << l << ": " << m << "\n\n";
+}

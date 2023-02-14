@@ -1,0 +1,4 @@
+// RUN: %quick %s | %file-check %s
+
+// CHECK: 5.5
+print 11.0 / 2.0;

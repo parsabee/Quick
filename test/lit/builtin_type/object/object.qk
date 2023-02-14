@@ -1,0 +1,18 @@
+// RUN: %quick %s | %file-check %s
+
+a: Object = "String";
+b: Object = "String";
+
+// CHECK: 1
+print a == b;
+// CHECK: 0
+print a != b;
+
+a = b;
+
+// CHECK: 1
+print a == b;
+// CHECK: 0
+print a != b;
+
+

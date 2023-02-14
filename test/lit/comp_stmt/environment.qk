@@ -1,0 +1,9 @@
+// RUN: %quick %s | %file-check %s
+
+first: Integer = 1;
+second: Integer = 2;
+third: Float = 3.5;
+fourth: Boolean = False;
+
+// CHECK: 1 2 3.5 0
+print first, second, third, fourth;

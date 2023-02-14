@@ -1,0 +1,7 @@
+// RUN: %quick %s | %file-check %s
+
+// CHECK: 0
+print !True;
+
+// CHECK: 1
+print !False;

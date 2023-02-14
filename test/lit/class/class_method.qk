@@ -1,0 +1,12 @@
+// RUN: %quick %s | %file-check %s
+
+class A(a: Integer) {
+    this.a = a;
+    fn getA() -> Integer {
+        return this.a;
+    }
+}
+
+a = A(10);
+// CHECK: 10
+print a.getA();

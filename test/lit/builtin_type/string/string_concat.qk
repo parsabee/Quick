@@ -1,0 +1,4 @@
+// RUN: %quick %s | %file-check %s
+
+// CHECK: Hello World Y'all
+print "Hello" + " " + "World" + " " + "Y'all\n";

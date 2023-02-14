@@ -1,0 +1,87 @@
+// RUN: %quick %s | %file-check %s
+
+class BoxedInt(int: Integer) {
+    this.int = int;
+
+    // overridden from object, `other` must have Object type
+    fn __eq__(other: Object) -> Boolean {
+        typecase other {
+            integer: BoxedInt { return this.int == integer.int; }
+        }
+        return False;
+    }
+
+    fn __ne__(other: Object) -> Boolean {
+        return !(this == other);
+    }
+
+    fn __str__() -> String {
+        return this.int.__str__();
+    }
+
+    // new methods
+    fn __add__(other: BoxedInt) -> BoxedInt { return BoxedInt(this.int + other.int); }
+    fn __sub__(other: BoxedInt) -> BoxedInt { return BoxedInt(this.int - other.int); }
+    fn __mul__(other: BoxedInt) -> BoxedInt { return BoxedInt(this.int * other.int); }
+    fn __div__(other: BoxedInt) -> BoxedInt { return BoxedInt(this.int / other.int); }
+    fn __mod__(other: BoxedInt) -> BoxedInt { return BoxedInt(this.int % other.int); }
+    fn __lt__(other: BoxedInt) -> Boolean { return this.int < other.int; }
+    fn __le__(other: BoxedInt) -> Boolean { return this.int <= other.int; }
+    fn __gt__(other: BoxedInt) -> Boolean { return this.int > other.int; }
+    fn __ge__(other: BoxedInt) -> Boolean { return this.int >= other.int; }
+
+    // getter
+    fn get() -> Integer { return this.int; }
+}
+
+int1 = BoxedInt(1);
+int2 = BoxedInt(1);
+int3 = BoxedInt(10);
+
+// CHECK: 1
+print int1 == int2;
+
+// CHECK: 0
+print int1 != int2;
+
+// CHECK: 0
+print int1 == int3;
+
+// CHECK: 1
+print int1 != int3;
+
+// CHECK: 0
+print int1 < int2;
+
+// CHECK: 1
+print int1 <= int2;
+
+// CHECK: 0
+print int1 > int2;
+
+// CHECK: 1
+print int1 >= int2;
+
+// CHECK: 1
+print int1 < int3;
+
+// CHECK: 1
+print int1 <= int3;
+
+// CHECK: 0
+print int1 > int3;
+
+// CHECK: 0
+print int1 >= int3;
+
+// CHECK: 3
+print BoxedInt(15) % BoxedInt(4);
+
+// CHECK: 60
+print BoxedInt(15) * BoxedInt(4);
+
+// CHECK: 19
+print BoxedInt(15) + BoxedInt(4);
+
+// CHECK: 11
+print BoxedInt(15) - BoxedInt(4);
