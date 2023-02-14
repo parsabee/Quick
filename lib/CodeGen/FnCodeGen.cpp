@@ -633,7 +633,7 @@ Status FnCodeGen::generate() {
   for (auto &arg : args) {
     scope.insert(arg);
   }
-  
+
   // Emitting IR for body of function
   if (!visitCompoundStmt(fnBody))
     return Status::CODEGEN_ERROR;
@@ -647,6 +647,17 @@ Status FnCodeGen::generate() {
   // Removing empty blocks
   removeEmptyBB(builder);
   return Status::OK;
+}
+
+Status FnCodeGen::generate(llvm::IRBuilder<> &builder, llvm::Module &module,
+                           const ast::CompoundStmt &cmpStmt,
+                           type::LLVMTypeRegistry &tr, LLVMEnv &llvmEnv,
+                           sema::type::QType *parentType,
+                           llvm::StringRef fnName, type::IRType *returnType,
+                           Args args) {
+  FnCodeGen fncg(builder, module, cmpStmt, tr, llvmEnv, parentType, fnName,
+                 returnType, std::move(args));
+  return fncg.generate();
 }
 
 static llvm::Value *loadVTable(IRBuilder<> &builder, llvm::Value *obj) {

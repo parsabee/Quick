@@ -24,6 +24,8 @@ namespace quick::sema {
 /// their legality
 /// ===-------------------------------------------------------------------=== //
 class ClassVerifier : public ast::ASTVisitor<ClassVerifier, bool> {
+  friend class SemaVerifier;
+
   std::fstream &file;
   const ast::Class &theClass;
   type::QTypeDB &tdb;
@@ -32,10 +34,10 @@ class ClassVerifier : public ast::ASTVisitor<ClassVerifier, bool> {
   bool verifyConstructor();
   bool hasRecursiveConstructor();
 
-public:
   ClassVerifier(std::fstream &file, const ast::Class &theClass)
       : file(file), theClass(theClass), tdb(type::QTypeDB::get()) {}
 
+public:
   // only visits classes/methods
   bool visitMethod(const ast::Method &);
   bool visitMethods(const ast::Methods &);
@@ -45,7 +47,7 @@ public:
 #define STMT_NODE_HANDLER(NODE) bool visit##NODE(const ast::NODE &) = delete;
 #include "AST/ASTNodes.def"
 
-  Status verify();
+  static Status verify(std::fstream &file, const ast::Class &theClass);
 };
 
 } // namespace quick::sema

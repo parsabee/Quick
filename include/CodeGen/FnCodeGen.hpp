@@ -51,8 +51,13 @@ public:
 #include "AST/ASTNodes.def"
 
   auto &getExprCodeGen() { return exprCG; }
-  Status generate();
   bool isMain() { return fnName == MainFn; }
+  Status generate();
+  static Status generate(llvm::IRBuilder<> &builder, llvm::Module &module,
+                         const ast::CompoundStmt &cmpStmt, type::LLVMTypeRegistry &tr,
+                         LLVMEnv &llvmEnv, sema::type::QType *parentType = nullptr,
+                         llvm::StringRef fnName = MainFn, type::IRType *returnType = nullptr,
+                         Args args = {});
 
 private:
   llvm::StringRef fnName;

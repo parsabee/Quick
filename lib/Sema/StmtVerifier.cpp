@@ -5,8 +5,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Utils/Utils.hpp"
 #include "Sema/StmtVerifier.hpp"
+#include "Utils/Utils.hpp"
 
 #include <memory>
 
@@ -56,8 +56,7 @@ bool StmtVerifier::visitAssignment(const ast::Assignment &assignment) {
   if (!rhsType)
     return false;
 
-  if (auto *ident =
-          GET_NODE_AS(assignment.getLHS(), IdentifierExpression)) {
+  if (auto *ident = GET_NODE_AS(assignment.getLHS(), IdentifierExpression)) {
     auto &var = ident->getVar().getName();
     if (auto *varType = env.lookup(var)) {
       if (varType != rhsType && !rhsType->isDescendentOf(varType)) {
@@ -69,8 +68,7 @@ bool StmtVerifier::visitAssignment(const ast::Assignment &assignment) {
     } else {
       scope.insert({var, rhsType});
     }
-  } else if (auto *memAccess =
-                 GET_NODE_AS(assignment.getLHS(), MemberAccess)) {
+  } else if (auto *memAccess = GET_NODE_AS(assignment.getLHS(), MemberAccess)) {
     auto *objType = typeChecker.visitExpression(memAccess->getObject());
     if (!objType)
       return false;
@@ -79,14 +77,16 @@ bool StmtVerifier::visitAssignment(const ast::Assignment &assignment) {
     if (!memberType) {
       if (!isConstructor) {
         logError(file, memAccess->getLocation(),
-                 "type <" + objType->getName() + "> has no member <" + memAccess->getMember().getName() +
+                 "type <" + objType->getName() + "> has no member <" +
+                     memAccess->getMember().getName() +
                      ">. Cannot add members outside of the types constructor");
         return false;
       }
       objType->insertMember(
           type::QVarDecl{rhsType, memAccess->getMember().getName()});
 
-    } else if (memberType->getName() != rhsType->getName() && !rhsType->isDescendentOf(memberType)) {
+    } else if (memberType->getName() != rhsType->getName() &&
+               !rhsType->isDescendentOf(memberType)) {
       logError(file, assignment.getLocation(),
                "Conflict between rhs type <" + rhsType->getName() +
                    "> and lhs type <" + memberType->getName() + ">");
@@ -127,8 +127,8 @@ bool StmtVerifier::visitStaticAssignment(
   if (decl.isMemberDecl()) {
     auto &memDecl = static_cast<const StaticMemberDecl &>(decl);
     auto &var = memDecl.getObject().getMember().getName();
-    if (auto *identExpr =
-            GET_NODE_AS(memDecl.getObject().getObject(), IdentifierExpression)) {
+    if (auto *identExpr = GET_NODE_AS(memDecl.getObject().getObject(),
+                                      IdentifierExpression)) {
       if (identExpr->getVarName() == "this" && isConstructor) {
         auto *type = env.lookup("this");
         assert(type);
@@ -202,7 +202,8 @@ bool StmtVerifier::visitReturn(const ast::Return &returnStmt) {
       if (!retType)
         return false;
 
-      if (retType->getName() != returnType->getName() && !retType->isDescendentOf(returnType)) {
+      if (retType->getName() != returnType->getName() &&
+          !retType->isDescendentOf(returnType)) {
         logError(file, returnStmt.getLocation(),
                  "Expected <" + returnType->getName() +
                      "> type to be returned but got <" + retType->getName() +
@@ -267,13 +268,24 @@ bool StmtVerifier::visitTypeSwitchCase(
   return visitCompoundStmt(typeSwitchCase.getBlock());
 }
 
-Status StmtVerifier::verify() {
-  auto &scope = env.addNewScope();
-  if (parentType) {
+Status StmtVerifier::verify(std::fstream &file,
+                            const ast::CompoundStmt &cmpStmt, Env &env,
+                            type::QType *parentType, type::QType *returnType,
+                            bool isConstructor, bool inANewScope,
+                            bool addThisToScope) {
+  StmtVerifier stmtVerifier(file, cmpStmt, env, parentType, returnType,
+                            isConstructor);
+  if (inANewScope) {
+    (void)env.addNewScope();
+  }
+  auto &scope = env.back();
+  if (parentType && addThisToScope) {
     scope.insert({"this", parentType});
   }
-  auto res = visitCompoundStmt(cmpStmt);
-  (void)env.popCurrentScope();
+  auto res = stmtVerifier.visitCompoundStmt(cmpStmt);
+  if (inANewScope) {
+    (void)env.popCurrentScope();
+  }
   return res ? Status::OK : Status::ERROR;
 }
 

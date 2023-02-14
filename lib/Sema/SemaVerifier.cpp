@@ -6,10 +6,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "Sema/SemaVerifier.hpp"
+#include "Compiler/Pipeline.hpp"
 #include "Sema/ClassVerifier.hpp"
 #include "Sema/StmtVerifier.hpp"
 #include "Utils/Utils.hpp"
-#include "Compiler/Pipeline.hpp"
 
 namespace quick {
 namespace sema {
@@ -41,18 +41,18 @@ static int processMembers(std::fstream &file, type::QTypeDB &tdb,
     assert(type);
     sema::Env env;
     auto &scope = env.addNewScope();
-    scope.insert({"this", type});
     for (auto &params : clss->getConstructor().getParams()) {
       auto &pt = params->getType().getName();
       auto &v = params->getVar().getName();
       auto *pQtype = tdb.getType(pt);
       scope.insert({v, pQtype});
     }
-    StmtVerifier constructorVerifier(file, clss->getConstructor().getBody(),
-                                     env, type, type, true);
-    if (!constructorVerifier.visitCompoundStmt(
-            clss->getConstructor().getBody()))
+    if (StmtVerifier::verify(file, clss->getConstructor().getBody(), env,
+                             /*parentType*/ type, /*returnType*/ type,
+                             /*isConstructor*/ true, /*addANewScope*/ false,
+                             /*addThisToScope*/ true) != Status::OK) {
       numErrors++;
+    }
   }
   return numErrors;
 }
@@ -191,18 +191,18 @@ static bool hasCircularInheritance(const Class &clss, type::QTypeDB &tdb) {
   return false;
 }
 
-Status SemaVerifier::verify() {
+Status verify(std::fstream &f, const ast::TranslationUnit &tu) {
   Env environment;
   int numErrors = 0;
   auto &tdb = type::QTypeDB::get();
 
-  numErrors += registerClasses(file, tdb, tu.getClasses());
-  numErrors += processSuperTypes(file, tdb, tu.getClasses());
-  numErrors += processMethods(file, tdb, tu.getClasses());
-  numErrors += processMembers(file, tdb, tu.getClasses());
+  numErrors += registerClasses(f, tdb, tu.getClasses());
+  numErrors += processSuperTypes(f, tdb, tu.getClasses());
+  numErrors += processMethods(f, tdb, tu.getClasses());
+  numErrors += processMembers(f, tdb, tu.getClasses());
   for (auto &clss : tu.getClasses()) {
     if (hasCircularInheritance(*clss, tdb)) {
-      logError(file, clss->getSuper()->getLocation(),
+      logError(f, clss->getSuper()->getLocation(),
                "circular inheritance detected");
       return Status::ERROR;
     }
@@ -215,15 +215,14 @@ Status SemaVerifier::verify() {
 
   // Checking classes
   for (auto &clss : tu.getClasses()) {
-    ClassVerifier cv(file, *clss);
-    if (cv.verify() != Status::OK)
+    if (ClassVerifier::verify(f, *clss) != Status::OK)
       numErrors++;
   }
 
   // Checking main
-  StmtVerifier stmtTypeChecker(file, tu.getCompoundStmt(), environment, nullptr,
-                               tdb.getIntegerType());
-  if (stmtTypeChecker.verify() != Status::OK)
+  if (StmtVerifier::verify(f, tu.getCompoundStmt(), environment,
+                           /*parentType*/ nullptr,
+                           /*returnType*/ tdb.getIntegerType()) != Status::OK)
     numErrors++;
 
   if (!numErrors)
@@ -237,8 +236,8 @@ Status SemaVerifier::verify() {
 
 namespace compiler {
 StatusOr<TypeCheckedObject> TypeCheck(ParsedObject parsedObject) {
-  sema::SemaVerifier sv(parsedObject.getFile(), parsedObject.getTranslationUnit());
-  Status status = sv.verify();
+  Status status = sema::verify(parsedObject.getFile(),
+                         parsedObject.getTranslationUnit());
   if (status != Status::OK)
     return status;
 

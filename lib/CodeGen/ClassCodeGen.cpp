@@ -260,31 +260,35 @@ ClassCodeGen::ClassCodeGen(const Class &theClass, llvm::Module &module,
   }
 }
 
-Status ClassCodeGen::generate() {
+Status ClassCodeGen::generate(const ast::Class &theClass, llvm::Module &module,
+                              llvm::IRBuilder<> &builder,
+                              type::LLVMTypeRegistry &tr) {
+
+  ClassCodeGen ccg(theClass, module, builder, tr);
   auto &constructor = theClass.getConstructor();
 
-  std::string constructorName = typeName + "_create";
+  std::string constructorName = ccg.typeName + "_create";
   auto vtable =
-      llvm::StructType::create(module.getContext(), typeName + "_vtable");
+      llvm::StructType::create(module.getContext(), ccg.typeName + "_vtable");
 
   // Creating the type
-  auto memberTable = generateMemberTable();
+  auto memberTable = ccg.generateMemberTable();
 
-  auto ctype = ComplexType::create(tr, module, typeName, super,
+  auto ctype = ComplexType::create(tr, module, ccg.typeName, ccg.super,
                                    std::move(memberTable), {}, vtable);
 
   auto irType = ctype.get();
   tr.registerType(std::move(ctype));
 
   // Creating the vtable
-  auto methodTable = generateVTable(irType, vtable);
+  auto methodTable = ccg.generateVTable(irType, vtable);
 
   // Generate global vtable instance and set it as objects vtable
-  auto vtableInstName = typeName + "Vtable";
+  auto vtableInstName = ccg.typeName + "Vtable";
   auto globalVtable = module.getOrInsertGlobal(vtableInstName, vtable, [&]() {
     std::vector<Constant *> funcs(methodTable.size() + 1);
     llvm::Constant *superVtableInst = module.getOrInsertGlobal(
-        std::string(super->getName()) + "Vtable", super->getVtable());
+        std::string(ccg.super->getName()) + "Vtable", ccg.super->getVtable());
     assert(superVtableInst);
     funcs[0] = superVtableInst;
     for (auto &entry : methodTable) {
@@ -314,7 +318,7 @@ Status ClassCodeGen::generate() {
   auto createFnType = llvm::FunctionType::get(irType->getType(), params, false);
   auto createFn =
       llvm::Function::Create(createFnType, llvm::GlobalValue::ExternalLinkage,
-                             typeName + "_create", module);
+                             ccg.typeName + "_create", module);
   params.insert(params.begin(), irType->getType());
 
   std::string superName;
@@ -330,22 +334,22 @@ Status ClassCodeGen::generate() {
       llvm::FunctionType::get(llvm::Type::getVoidTy(cntx), params, false);
   auto initFn =
       llvm::Function::Create(initFnType, llvm::GlobalValue::ExternalLinkage,
-                             typeName + "_init", module);
+                             ccg.typeName + "_init", module);
 
   initFn->setDSOLocal(true);
   createFn->setDSOLocal(true);
 
   // Creating the init function
-  if (!generateInitFunction(initFn, superInitFn)) {
+  if (!ccg.generateInitFunction(initFn, superInitFn)) {
     return Status::ERROR;
   }
 
   // Creating the create function
-  generateCreateFunction(createFn, initFn, irType->getStructType(), vtable,
+  ccg.generateCreateFunction(createFn, initFn, irType->getStructType(), vtable,
                          globalVtable, irType->getMethodTable());
-  generateGetVtableFunction(globalVtable);
+  ccg.generateGetVtableFunction(globalVtable);
 
-  return visitClass(theClass) ? Status::OK : Status::ERROR;
+  return ccg.visitClass(theClass) ? Status::OK : Status::ERROR;
 }
 
 } // namespace quick::codegen

@@ -5,8 +5,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines the SemaVerifier class.
-// SemaVerifier verifies the semantics of the program.
+// This file declares the seam::verify function.
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,17 +19,8 @@
 
 namespace quick::sema {
 
-class SemaVerifier {
-  std::fstream &file;
-  const ast::TranslationUnit &tu;
-
-public:
-  SemaVerifier(std::fstream &f, const ast::TranslationUnit &tu)
-      : file(f), tu(tu) {}
-
-  // Returns OK if code checks out, ERROR otherwise
-  Status verify();
-};
+// Returns OK if code checks out, ERROR otherwise
+Status verify(std::fstream &f, const ast::TranslationUnit &tu);
 
 } // namespace quick::sema
 

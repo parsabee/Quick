@@ -100,8 +100,6 @@ bool ClassVerifier::visitMethod(const ast::Method &m) {
     logError(file, m.getReturnType().getLocation(), "return type not found");
     return false;
   }
-  StmtVerifier stmtVerifier(file, m.getBody(), env, qtype, retType);
-  scope.insert({"this", qtype});
   for (auto &p : m.getParams()) {
     auto pType = tdb.getType(p->getType().getName());
     if (!pType) {
@@ -111,7 +109,9 @@ bool ClassVerifier::visitMethod(const ast::Method &m) {
     }
     scope.insert({p->getVar().getName(), pType});
   }
-  if (!stmtVerifier.visitCompoundStmt(m.getBody()))
+  if (StmtVerifier::verify(file, m.getBody(), env, qtype, retType,
+                           /*isConstructor*/ false, /*addANewScope*/ false,
+                           /*addThisToScope*/ true) != Status::OK)
     return false;
   env.popCurrentScope();
   return true;
@@ -128,8 +128,9 @@ bool ClassVerifier::visitClass(const ast::Class &clss) {
   return true;
 }
 
-Status ClassVerifier::verify() {
-  return visitClass(theClass) ? Status::OK : Status::ERROR;
+Status ClassVerifier::verify(std::fstream &file, const ast::Class &theClass) {
+  ClassVerifier cv(file, theClass);
+  return cv.visitClass(theClass) ? Status::OK : Status::ERROR;
 }
 
 } // namespace quick::sema

@@ -32,8 +32,6 @@ class StmtVerifier : public ast::ASTVisitor<StmtVerifier, bool> {
   type::QType *returnType;
   bool isConstructor; // If compound statement belongs to a constructor
   TypeChecker typeChecker;
-
-public:
   StmtVerifier(std::fstream &file, const ast::CompoundStmt &cmpStmt, Env &env,
                type::QType *parentType = nullptr,
                type::QType *returnType = nullptr, bool isConstructor = false)
@@ -41,6 +39,7 @@ public:
         parentType(parentType), returnType(returnType),
         isConstructor(isConstructor), typeChecker(file, tdb, env) {}
 
+public:
   // only visits statements
   bool visitExpression(const ast::Expression &) = delete;
 #define EXPR_NODE_HANDLER(NODE) bool visit##NODE(const ast::NODE &) = delete;
@@ -48,7 +47,11 @@ public:
 #include "AST/ASTNodes.def"
 
   /// returns OK if legal, ERROR otherwise
-  Status verify();
+  static Status verify(std::fstream &file, const ast::CompoundStmt &cmpStmt,
+                       Env &env, type::QType *parentType = nullptr,
+                       type::QType *returnType = nullptr,
+                       bool isConstructor = false, bool inANewScope = true,
+                       bool addThisToScope = false);
 };
 
 } // namespace quick::sema

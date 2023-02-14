@@ -1,11 +1,11 @@
-./build
+build
 
 # clion
-./cmake-build-debug
-./.idea
+cmake-build-debug
+.idea
 
 # vscode
-./.vscode
+.vscode
 
 # MacOs
-./.DS_Store
+**/.DS_Store

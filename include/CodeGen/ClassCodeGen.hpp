@@ -45,9 +45,9 @@ class ClassCodeGen : public ast::ASTVisitor<ClassCodeGen, bool> {
   type::MethodTable generateVTable(type::IRType *, llvm::StructType *);
   sema::type::Table<llvm::Type *> generateMemberTable();
 
-public:
   ClassCodeGen(const ast::Class &theClass, llvm::Module &module,
                llvm::IRBuilder<> &builder, type::LLVMTypeRegistry &tr);
+public:
   // only visits classes/methods
   bool visitMethod(const ast::Method &);
   bool visitMethods(const ast::Methods &);
@@ -57,7 +57,8 @@ public:
 #define STMT_NODE_HANDLER(NODE) bool visit##NODE(const ast::NODE &) = delete;
 #include "AST/ASTNodes.def"
 
-  Status generate();
+  static Status generate(const ast::Class &theClass, llvm::Module &module,
+                         llvm::IRBuilder<> &builder, type::LLVMTypeRegistry &tr);
 };
 
 } // namespace codegen
