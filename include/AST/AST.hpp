@@ -27,7 +27,7 @@ namespace quick::ast {
 /// ===-------------------------------------------------------------------=== //
 class ASTNode {
 protected:
-  enum class Kind : uint32_t {
+  enum class Kind : uint64_t {
     TranslationUnit = 1,
     Statement,
     Expression,
@@ -55,11 +55,11 @@ public:
   /// infrastructure, add the node to the appropriate enum, then add
   /// `__INITIALIZE_NODE_TYPE_INFO` in the node class's definition
   /// ===-----------------------------------------------------------------=== //
-  static constexpr uint32_t __id = 0;
-  static constexpr uint32_t __sub_type_id_padding = 8;
-  static constexpr uint32_t __remaining_bits = 24;
-  static constexpr uint32_t __mask = __id << __remaining_bits;
-  virtual uint32_t __get_type_dyn_mask() const = 0;
+  static constexpr uint64_t __id = 0;
+  static constexpr uint64_t __sub_type_id_padding = 8;
+  static constexpr uint64_t __remaining_bits = 24;
+  static constexpr uint64_t __mask = __id << __remaining_bits;
+  virtual uint64_t __get_type_dyn_mask() const = 0;
 
   /// this function acts as a dynamic cast for ASTNodes
   template <typename CastT> const CastT *as_a() const {
@@ -81,11 +81,11 @@ private:
 
 /// Initializes dynamic type info inside an ASTNode class definition
 #define __INITIALIZE_NODE_TYPE_INFO(NODE, PARENT)                              \
-  static constexpr uint32_t __id = (uint32_t)PARENT::Kind::NODE;               \
-  static constexpr uint32_t __remaining_bits =                                 \
+  static constexpr uint64_t __id = (uint64_t)PARENT::Kind::NODE;               \
+  static constexpr uint64_t __remaining_bits =                                 \
       PARENT::__remaining_bits - __sub_type_id_padding;                        \
-  static constexpr uint32_t __mask = __id << __remaining_bits;                 \
-  uint32_t __get_type_dyn_mask() const override { return __mask; }
+  static constexpr uint64_t __mask = __id << __remaining_bits;                 \
+  uint64_t __get_type_dyn_mask() const override { return __mask; }
 
 #define __INIT_KIND ((__id << __sub_type_id_padding) + 1)
 
@@ -101,7 +101,6 @@ class TranslationUnit final : public ASTNode {
 
 public:
   __INITIALIZE_NODE_TYPE_INFO(TranslationUnit, ASTNode);
-
   TranslationUnit(Location loc, std::unique_ptr<Classes> classes,
                   std::unique_ptr<CompoundStmt> compoundStmt)
       : ASTNode(loc, (ASTNode::Kind)__id), _classes(std::move(classes)),
@@ -117,7 +116,7 @@ public:
 class Statement : public ASTNode {
 public:
   __INITIALIZE_NODE_TYPE_INFO(Statement, ASTNode);
-  enum class Kind : uint32_t {
+  enum class Kind : uint64_t {
     ValueStmt = __INIT_KIND,
     Assignment,
     StaticAssignment,
@@ -149,7 +148,7 @@ template <typename T> using Sequence = std::vector<std::unique_ptr<T>>;
 /// ===-------------------------------------------------------------------=== //
 class CompoundStmt final : public Sequence<Statement>, public ASTNode {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(TranslationUnit, ASTNode);
+  __INITIALIZE_NODE_TYPE_INFO(CompoundStmt, ASTNode);
   explicit CompoundStmt(const Location &loc)
       : ASTNode(loc, (ASTNode::Kind)__id) {}
   bool hasReturn() const;
@@ -223,7 +222,7 @@ private:
 class BinaryOperator final : public Expression {
 public:
   __INITIALIZE_NODE_TYPE_INFO(BinaryOperator, Expression);
-  enum class Operator : uint32_t {
+  enum class Operator : uint64_t {
     Plus = __INIT_KIND,
     Minus,
     Times,
@@ -273,7 +272,7 @@ public:
 class LValue : public Expression {
 public:
   __INITIALIZE_NODE_TYPE_INFO(LValue, Expression);
-  enum class Kind : uint32_t { Ident = __INIT_KIND, MemberAccess };
+  enum class Kind : uint64_t { Ident = __INIT_KIND, MemberAccess };
 
   inline Kind getKind() const { return _kind; }
   virtual const std::string &getVarName() const = 0;
