@@ -164,8 +164,8 @@ bool ClassCodeGen::generateInitFunction(llvm::Function *initFn,
 
   for (auto &stmt : constructor.getBody()) {
     // checking if it's a super type initializer
-    if (auto *valStmt = GET_NODE_AS(*stmt, ValueStmt)) {
-      if (auto *call = GET_NODE_AS(valStmt->getExpr(), Call)) {
+    if (auto *valStmt = stmt->as_a<ValueStmt>()) {
+      if (auto *call = valStmt->getExpr().as_a<Call>()) {
         auto s = theClass.getSuper();
         if (!s || s->getName() == "Object")
           continue;

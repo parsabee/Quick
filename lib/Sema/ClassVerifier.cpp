@@ -15,7 +15,7 @@ using namespace ast;
 
 bool ClassVerifier::hasRecursiveConstructor() {
   auto isRecursiveCall = [&](const Call &call) {
-    if (auto *identExpr = GET_NODE_AS(call.getCallee(), IdentifierExpression)) {
+    if (auto *identExpr = call.getCallee().as_a<IdentifierExpression>()) {
       if (identExpr->getVar().getName() ==
           this->theClass.getClassIdent().getName())
         return true;
@@ -25,8 +25,8 @@ bool ClassVerifier::hasRecursiveConstructor() {
 
   auto &constructor = theClass.getConstructor();
   for (auto &stmt : constructor.getBody()) {
-    if (auto *valueStmt = GET_NODE_AS(*stmt, ValueStmt)) {
-      if (auto *call = GET_NODE_AS(valueStmt->getExpr(), Call)) {
+    if (auto *valueStmt = stmt->as_a<ValueStmt>()) {
+      if (auto *call = valueStmt->getExpr().as_a<Call>()) {
         if (isRecursiveCall(*call))
           return true;
       }
@@ -37,7 +37,7 @@ bool ClassVerifier::hasRecursiveConstructor() {
 
 bool ClassVerifier::isSuperInitialized(const std::string &superName) {
   auto isSuperConstructor = [&](const Call &call) {
-    if (auto *identExpr = GET_NODE_AS(call.getCallee(), IdentifierExpression)) {
+    if (auto *identExpr = call.getCallee().as_a<IdentifierExpression>()) {
       if (identExpr->getVar().getName() == superName)
         return true;
     }
@@ -46,8 +46,8 @@ bool ClassVerifier::isSuperInitialized(const std::string &superName) {
 
   auto &constructor = theClass.getConstructor();
   for (auto &stmt : constructor.getBody()) {
-    if (auto *valueStmt = GET_NODE_AS(*stmt, ValueStmt)) {
-      if (auto *call = GET_NODE_AS(valueStmt->getExpr(), Call)) {
+    if (auto *valueStmt = stmt->as_a<ValueStmt>()) {
+      if (auto *call = valueStmt->getExpr().as_a<Call>()) {
         if (isSuperConstructor(*call))
           return true;
       }

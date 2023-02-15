@@ -139,7 +139,7 @@ type::QType *TypeChecker::visitCall(const Call &call) {
   }
 
   auto &callee = call.getCallee();
-  if (auto identExpr = GET_NODE_AS(callee, IdentifierExpression)) {
+  if (auto identExpr = callee.as_a<IdentifierExpression>()) {
     // it has to be a constructor
     auto type = tdb.getType(identExpr->getVarName());
     if (!type) {
@@ -156,7 +156,7 @@ type::QType *TypeChecker::visitCall(const Call &call) {
     }
 
     return type;
-  } else if (auto memAccess = GET_NODE_AS(callee, MemberAccess)) {
+  } else if (auto memAccess = callee.as_a<MemberAccess>()) {
     auto *objType = visitExpression(memAccess->getObject());
     if (!objType)
       return nullptr;

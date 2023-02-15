@@ -257,55 +257,35 @@ void PrintVisitor::visitTypeSwitchCase(
 
 void PrintVisitor::visitTypeAlternatives(
     const ast::TypeAlternatives &typeAlts) {
-      // TODO
+  // TODO
 }
 
-
-void PrintVisitor::visitClass(
-    const ast::Class &clss) {
-      // TODO
+void PrintVisitor::visitClass(const ast::Class &clss) {
+  // TODO
 }
 
-void PrintVisitor::visitClasses(
-    const ast::Classes &clsses) {
-      // TODO
+void PrintVisitor::visitClasses(const ast::Classes &clsses) {
+  // TODO
 }
 
-void PrintVisitor::visitMethod(
-    const ast::Method &method) {
-      // TODO
+void PrintVisitor::visitMethod(const ast::Method &method) {
+  // TODO
 }
 
-void PrintVisitor::visitMethods(
-    const ast::Methods &methods) {
-      // TODO
+void PrintVisitor::visitMethods(const ast::Methods &methods) {
+  // TODO
 }
 
-void PrintVisitor::visitArguments(
-    const ast::Arguments &args) {
-      // TODO
+void PrintVisitor::visitArguments(const ast::Arguments &args) {
+  // TODO
 }
 
-void PrintVisitor::visitParameters(
-    const ast::Parameters &params) {
-      // TODO
+void PrintVisitor::visitParameters(const ast::Parameters &params) {
+  // TODO
 }
-
 
 void print(const ASTNode &node) {
   PrintVisitor printVisitor;
-  switch (node.getID()) {
-  case NodeID::ASTNode:
-    break;
-#define NODE_HANDLER(NODE)                                                     \
-  case NodeID::NODE:                                                           \
-    printVisitor.visit##NODE(*static_cast<const NODE *>(&node));               \
-    break;
-#define ABSTRACT_NODE_HANDLER(NODE)                                            \
-  case NodeID::NODE:                                                           \
-    break;
-#include "AST/ASTNodes.def"
-  }
 }
 
 } // namespace quick::ast

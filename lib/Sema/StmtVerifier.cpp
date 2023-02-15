@@ -56,7 +56,7 @@ bool StmtVerifier::visitAssignment(const ast::Assignment &assignment) {
   if (!rhsType)
     return false;
 
-  if (auto *ident = GET_NODE_AS(assignment.getLHS(), IdentifierExpression)) {
+  if (auto *ident = assignment.getLHS().as_a<IdentifierExpression>()) {
     auto &var = ident->getVar().getName();
     if (auto *varType = env.lookup(var)) {
       if (varType != rhsType && !rhsType->isDescendentOf(varType)) {
@@ -68,7 +68,7 @@ bool StmtVerifier::visitAssignment(const ast::Assignment &assignment) {
     } else {
       scope.insert({var, rhsType});
     }
-  } else if (auto *memAccess = GET_NODE_AS(assignment.getLHS(), MemberAccess)) {
+  } else if (auto *memAccess = assignment.getLHS().as_a<MemberAccess>()) {
     auto *objType = typeChecker.visitExpression(memAccess->getObject());
     if (!objType)
       return false;
@@ -127,8 +127,8 @@ bool StmtVerifier::visitStaticAssignment(
   if (decl.isMemberDecl()) {
     auto &memDecl = static_cast<const StaticMemberDecl &>(decl);
     auto &var = memDecl.getObject().getMember().getName();
-    if (auto *identExpr = GET_NODE_AS(memDecl.getObject().getObject(),
-                                      IdentifierExpression)) {
+    if (auto *identExpr =
+            memDecl.getObject().getObject().as_a<IdentifierExpression>()) {
       if (identExpr->getVarName() == "this" && isConstructor) {
         auto *type = env.lookup("this");
         assert(type);
