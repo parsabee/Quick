@@ -1,3 +1,10 @@
+##===----------------------------------------------------------------------===##
+# This file finds Python3 and defines functions to create virtual environments
+# and install packages with pip
+#
+# Copyright (c) 2023 Parsa Bagheri
+##===----------------------------------------------------------------------===##
+
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 if (Python3_FOUND)
   message(STATUS "Python3 found: ${Python3_EXECUTABLE}")

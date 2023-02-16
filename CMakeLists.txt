@@ -1,3 +1,9 @@
+##===----------------------------------------------------------------------===##
+# Root cmake file, sets up the project
+#
+# Copyright (c) 2023 Parsa Bagheri
+##===----------------------------------------------------------------------===##
+
 # Configuring the project
 project(Quick)
 cmake_minimum_required(VERSION 3.18)
@@ -29,8 +35,12 @@ include(cmake/QuickFlex.cmake)
 # LLVM dependency
 set(quick_llvm_version "10.0.0")
 set(quick_llvm_install_dir ${CMAKE_BINARY_DIR}/third-party/llvm)
-set(quick_llvm_lit_install_dir ${CMAKE_BINARY_DIR}/third-party/llvm-lit)
 include(cmake/QuickLLVM.cmake)
+
+# GTest dependency
+set(quick_gtest_version "1.11.0")
+set(quick_gtest_install_dir ${CMAKE_BINARY_DIR}/third-party/gtest)
+include(cmake/QuickGTest.cmake)
 
 # Configuring the system
 # Platform OS
@@ -69,6 +79,12 @@ quick_check_llvm_toolchain(${quick_llvm_target} ${quick_llvm_version} ${quick_ll
 if (NOT QUICK_LLVM_EXECUTABLE)
   quick_install_prebuilt_llvm(${quick_llvm_platform} ${quick_llvm_target} ${quick_llvm_version} ${quick_llvm_install_dir})
 endif ()
+
+# Check GTest
+quick_check_gtest(${quick_gtest_version} ${quick_gtest_install_dir})
+if (NOT QUICK_GTEST_MAIN_LIBRARY)
+  quick_install_gtest(${quick_gtest_version} ${quick_gtest_install_dir})
+endif()
 
 # Create virtual env and install pip packages
 quick_create_python_virtual_env(${quick_python_virtual_env})

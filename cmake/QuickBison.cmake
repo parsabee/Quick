@@ -1,3 +1,9 @@
+##===----------------------------------------------------------------------===##
+# This file finds and/or installs GNU Bison
+#
+# Copyright (c) 2023 Parsa Bagheri
+##===----------------------------------------------------------------------===##
+
 include(ExternalProject)
 
 # Checks if `bison_version` is installed in `install_path`

@@ -1,3 +1,9 @@
+##===----------------------------------------------------------------------===##
+# This file finds and/or installs GNU Flex
+#
+# Copyright (c) 2023 Parsa Bagheri
+##===----------------------------------------------------------------------===##
+
 include(ExternalProject)
 
 # Installs flex 'version' in 'path'

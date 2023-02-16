@@ -34,8 +34,6 @@ protected:
     LValue,
     Decl,
     Identifier,
-    VarDecl,
-    StaticMemberDecl,
     Arguments,
     Parameters,
     Class,
@@ -57,7 +55,7 @@ public:
   /// ===-----------------------------------------------------------------=== //
   static constexpr uint64_t __id = 0;
   static constexpr uint64_t __sub_type_id_padding = 8;
-  static constexpr uint64_t __remaining_bits = 24;
+  static constexpr uint64_t __remaining_bits = 64 - __sub_type_id_padding;
   static constexpr uint64_t __mask = __id << __remaining_bits;
   virtual uint64_t __get_type_dyn_mask() const = 0;
 

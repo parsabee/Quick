@@ -1,3 +1,9 @@
+##===----------------------------------------------------------------------===##
+# This file finds and/or installs LLVM
+#
+# Copyright (c) 2023 Parsa Bagheri
+##===----------------------------------------------------------------------===##
+
 # Sets macros for llvm link flags and libraries
 macro(quick_llvm_config llvm_config)
   message(STATUS "getting llvm linker flags")
@@ -64,6 +70,7 @@ function(quick_check_llvm_toolchain arch llvm_version install_path)
 
   if (QUICK_LLVM_FOUND)
     set(QUICK_LLVM_EXECUTABLE ${LLVM_INSTALL_DIR}/bin/llc PARENT_SCOPE)
+    message(STATUS "found llvm ${LLVM_INSTALL_DIR}")
   endif()
 endfunction()
 
