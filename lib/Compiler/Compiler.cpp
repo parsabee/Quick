@@ -37,14 +37,14 @@ StatusOr<CodeGenedObject> CodeGen(TypeCheckedObject typecheckedObject) {
   // Generating code for classes and methods
   for (auto &clss : root.getClasses()) {
     status = ClassCodeGen::generate(*clss, *module, builder, tr);
-    if (status != Status::OK)
+    if (!ok(status))
       return status;
   }
 
   // Generating code for the main function
   LLVMEnv env;
   status = FnCodeGen::generate(builder, *module, root.getCompoundStmt(), tr, env);
-  if (status != Status::OK)
+  if (!ok(status))
     return status;
 
   codeGened.setModule(std::move(module));

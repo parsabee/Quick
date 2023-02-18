@@ -35,7 +35,8 @@ struct Source {
   std::fstream releaseFile() { return std::move(file); }
   Source(std::string n, std::fstream f)
       : name(std::move(n)), file(std::move(f)) {}
-  Source(Source &&src) : name(std::move(src.name)), file(std::move(src.file)) {}
+  Source(const Source &) = delete;
+  Source(Source &&) = default;
   Source() = default;
 };
 
@@ -52,6 +53,8 @@ struct CompilerObject : public Source {
   }
   CompilerObject(std::unique_ptr<ast::TranslationUnit> tu, Source s)
       : Source(std::move(s)), translationUnit(std::move(tu)) {}
+  CompilerObject(const CompilerObject &) = delete;
+  CompilerObject(CompilerObject &&) = default;
   CompilerObject() = default;
 };
 
@@ -66,6 +69,8 @@ class ParsedObject : public CompilerObject {
       : CompilerObject(std::move(tu), Source{filename, std::move(file)}) {}
 
 public:
+  ParsedObject(const ParsedObject &) = delete;
+  ParsedObject(ParsedObject &&) = default;
   ParsedObject() = default;
 };
 
@@ -81,6 +86,8 @@ class TypeCheckedObject : public CompilerObject {
                               parsedObject.releaseFile()}) {}
 
 public:
+  TypeCheckedObject(const TypeCheckedObject &) = delete;
+  TypeCheckedObject(TypeCheckedObject &&) = default;
   TypeCheckedObject() = default;
 };
 
@@ -100,6 +107,8 @@ class CodeGenedObject : public CompilerObject {
 
 public:
   CodeGenedObject() = default;
+  CodeGenedObject(const CodeGenedObject &) = delete;
+  CodeGenedObject(CodeGenedObject &&) = default;
   llvm::LLVMContext *getContext() { return _cntx ? _cntx.get() : nullptr; }
   void setModule(std::unique_ptr<llvm::Module> module) {
     _module = std::move(module);

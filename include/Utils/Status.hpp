@@ -31,6 +31,8 @@ enum class Status {
   VALUE_RELEASED,
 };
 
+inline bool ok(Status status) { return status == Status::OK; }
+
 //===----------------------------------------------------------------------===//
 // StatusOr - different systems may return StatusOr<Type>, constructed from
 // an object or status. Type `T` must have a default constructor
@@ -43,7 +45,10 @@ public:
   StatusOr(Status status) : _status(status) {
     assert(_status != Status::OK && "must not initialize with OK");
   }
-  StatusOr(T val) : _value(std::move(val)) {}
+  StatusOr(const StatusOr &) = delete;
+  StatusOr(StatusOr &&other)
+      : _status(other._status), _value(std::move(other._value)) {}
+  StatusOr(T &&val) : _value(std::move(val)) {}
   Status status() { return _status; }
   bool ok() { return _status == Status::OK; }
   // releases the value
@@ -57,6 +62,15 @@ public:
     return std::move(_value);
   }
 };
+
+/// Exists if status is not ok, otherwise returns value
+#define EXIT_ON_ERROR(STATUS_OR)                                               \
+  [&]() {                                                                      \
+    auto tmp = (std::move(STATUS_OR));                                         \
+    if (!tmp.ok())                                                             \
+      std::exit(static_cast<int>(tmp.status()));                               \
+    return tmp.ValueOrDie();                                                   \
+  }()
 
 } // namespace quick
 

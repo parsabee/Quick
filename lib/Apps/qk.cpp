@@ -5,7 +5,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// The main driver of the jit compiler 
+// The main driver of the jit compiler
 //
 //===----------------------------------------------------------------------===//
 
@@ -29,35 +29,26 @@ cl::opt<std::string> Filename(cl::Positional, cl::desc("<input-file>"),
                               cl::NumOccurrencesFlag::Required);
 
 int main(int argc, char **argv) {
+  int status = 0;
   cl::ParseCommandLineOptions(argc, argv, "Quick Compiler\n");
 
-  auto statusOrParsed = compiler::Parse(Filename);
-  if (!statusOrParsed.ok())
-    std::exit(static_cast<int>(statusOrParsed.status()));
-
-  auto parsed = statusOrParsed.ValueOrDie();
+  auto parsed = EXIT_ON_ERROR(compiler::Parse(Filename));
   if (DumpAST) {
     ast::print(parsed.getTranslationUnit());
-    std::exit(0);
+    std::exit(status);
   }
 
-  auto statusOrTypeChecked = compiler::TypeCheck(std::move(parsed));
-  if (!statusOrTypeChecked.ok())
-    std::exit(static_cast<int>(statusOrTypeChecked.status()));
+  auto typechecked = EXIT_ON_ERROR(compiler::TypeCheck(std::move(parsed)));
 
-  auto typechecked = statusOrTypeChecked.ValueOrDie();
-  auto statusOrCodeGened = compiler::CodeGen(std::move(typechecked));
-  if (!statusOrCodeGened.ok())
-    std::exit(static_cast<int>(statusOrCodeGened.status()));
+  auto codeGened = EXIT_ON_ERROR(compiler::CodeGen(std::move(typechecked)));
 
-  auto codeGened = statusOrCodeGened.ValueOrDie();
   if (EmitLLVMIR) {
     std::unique_ptr<Module> module = codeGened.releaseModule();
     module->print(llvm::outs(), nullptr);
-    std::exit(0);
+    std::exit(status);
   }
 
   compiler::InitializeLLVMBackendTarget();
-  int status = compiler::Jit(std::move(codeGened));
+  status = compiler::Jit(std::move(codeGened));
   std::exit(status);
 }

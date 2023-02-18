@@ -10,6 +10,7 @@ add_library(QuickParser STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/Driver.cpp)
 
 target_compile_options(QuickParser PRIVATE "-frtti") #Bison/Flex generated files need it
+target_compile_options(QuickParser PRIVATE "-fexceptions") #Bison/Flex generated files need it
 
 quick_link_bison_libraries(QuickParser ${quick_bison_version} ${quick_bison_install_dir})
 quick_link_flex_libraries(QuickParser ${quick_flex_version} ${quick_flex_install_dir})

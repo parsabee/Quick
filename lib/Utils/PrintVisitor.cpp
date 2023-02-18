@@ -286,6 +286,7 @@ void PrintVisitor::visitParameters(const ast::Parameters &params) {
 
 void print(const ASTNode &node) {
   PrintVisitor printVisitor;
+  printVisitor.visitASTNode(node);
 }
 
 } // namespace quick::ast

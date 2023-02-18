@@ -5,9 +5,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// TL;DR include Interface.hpp instead of this file
-//
-// This file defines the interface for the front-end parser. This file builds 
+// This file defines the interface for the front-end parser. This file builds
 // with -frtti as Flex and Bison require typeid, therefore this file must not
 // be included in sources with -fno-rtti compile flag.
 //

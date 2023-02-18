@@ -29,7 +29,7 @@ AST_NODES
 #define STMT_NODE_HANDLER NODE_HANDLER
 #endif
 
-/// Defines visit method for all Expression subtypes in the AST
+/// Defines macros for all Expression subtypes in the AST
 #ifdef EXPR_NODE_HANDLER
 #define AST_NODES                                                              \
   EXPR_NODE_HANDLER(IntegerLiteral)                                            \
@@ -48,7 +48,7 @@ AST_NODES
 #undef EXPR_NODE_HANDLER
 #endif
 
-/// Defines visit method for all Statement subtypes in the AST
+/// Defines macros for all Statement subtypes in the AST
 #ifdef STMT_NODE_HANDLER
 #define AST_NODES                                                              \
   STMT_NODE_HANDLER(CompoundStmt)                                              \
@@ -67,7 +67,7 @@ AST_NODES
 #undef STMT_NODE_HANDLER
 #endif
 
-/// Defines visit method for leftover nodes (!Stmt && !Expr)
+/// Defines macros for leftover nodes (!Stmt && !Expr)
 #ifdef NODE_HANDLER
 #define AST_NODES                                                              \
   NODE_HANDLER(TranslationUnit)                                                \

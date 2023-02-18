@@ -26,7 +26,7 @@ namespace quick::ast {
 /// ASTNode - Abstract node class, the base for every other AST node
 /// ===-------------------------------------------------------------------=== //
 class ASTNode {
-protected:
+public:
   enum class Kind : uint64_t {
     TranslationUnit = 1,
     Statement,
@@ -42,15 +42,11 @@ protected:
     TypeAlternatives,
     CompoundStmt
   };
-
-  ASTNode(Location loc, Kind kind) : _loc(loc), _kind(kind) {}
-
-public:
   /// ===-----------------------------------------------------------------=== //
   /// RTTI is off, these are some dynamic and static type information to
   /// implement dynamic cast. When adding a new ASTNode, to conform with this
   /// infrastructure, add the node to the appropriate enum, then add
-  /// `__INITIALIZE_NODE_TYPE_INFO` in the node class's definition
+  /// `__INITIALIZE_NODE_RTTI` in the node class's definition
   /// ===-----------------------------------------------------------------=== //
   static constexpr uint64_t __id = 0;
   static constexpr uint64_t __sub_type_id_padding = 8;
@@ -71,6 +67,9 @@ public:
   inline Kind getKind() const { return _kind; }
   virtual ~ASTNode() = default;
 
+protected:
+  ASTNode(Location loc, Kind kind) : _loc(loc), _kind(kind) {}
+
 private:
   const Location _loc;
   Kind _kind;
@@ -78,7 +77,7 @@ private:
 
 /// ===-------------------------------------------------------------------=== //
 /// This macro declares compile time type info for an ASTNode subtype
-#define __INITIALIZE_NODE_TYPE_INFO(NODE, PARENT)                              \
+#define __INITIALIZE_NODE_RTTI(NODE, PARENT)                                   \
   static constexpr uint64_t __remaining_bits =                                 \
       PARENT::__remaining_bits - __sub_type_id_padding;                        \
   static constexpr uint64_t __raw_id = (uint64_t)PARENT::Kind::NODE;           \
@@ -102,7 +101,7 @@ class TranslationUnit final : public ASTNode {
   std::unique_ptr<CompoundStmt> _compoundStmt;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(TranslationUnit, ASTNode);
+  __INITIALIZE_NODE_RTTI(TranslationUnit, ASTNode);
   TranslationUnit(Location loc, std::unique_ptr<Classes> classes,
                   std::unique_ptr<CompoundStmt> compoundStmt)
       : ASTNode(loc, (ASTNode::Kind)__id), _classes(std::move(classes)),
@@ -117,7 +116,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class Statement : public ASTNode {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Statement, ASTNode);
+  __INITIALIZE_NODE_RTTI(Statement, ASTNode);
   enum class Kind : uint64_t {
     ValueStmt = __INITIALIZE_KIND,
     Assignment,
@@ -150,7 +149,7 @@ template <typename T> using Sequence = std::vector<std::unique_ptr<T>>;
 /// ===-------------------------------------------------------------------=== //
 class CompoundStmt final : public Sequence<Statement>, public ASTNode {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(CompoundStmt, ASTNode);
+  __INITIALIZE_NODE_RTTI(CompoundStmt, ASTNode);
   explicit CompoundStmt(const Location &loc)
       : ASTNode(loc, (ASTNode::Kind)__id) {}
   bool hasReturn() const;
@@ -161,7 +160,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class Expression : public ASTNode {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Expression, ASTNode);
+  __INITIALIZE_NODE_RTTI(Expression, ASTNode);
   enum class Kind {
     Call = __INITIALIZE_KIND,
     UnaryOperator,
@@ -191,7 +190,7 @@ class ValueStmt final : public Statement {
   std::unique_ptr<Expression> _expr;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(ValueStmt, Statement);
+  __INITIALIZE_NODE_RTTI(ValueStmt, Statement);
   explicit ValueStmt(Location loc, std::unique_ptr<Expression> expr)
       : Statement(loc, Statement::Kind::ValueStmt), _expr(std::move(expr)) {}
   inline const Expression &getExpr() const { return *_expr; }
@@ -202,7 +201,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class UnaryOperator final : public Expression {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(UnaryOperator, Expression);
+  __INITIALIZE_NODE_RTTI(UnaryOperator, Expression);
   enum class Operator { Neg = __INITIALIZE_KIND, Not };
 
   UnaryOperator(Location loc, Operator opCode,
@@ -223,7 +222,7 @@ private:
 /// ===-------------------------------------------------------------------=== //
 class BinaryOperator final : public Expression {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(BinaryOperator, Expression);
+  __INITIALIZE_NODE_RTTI(BinaryOperator, Expression);
   enum class Operator : uint64_t {
     Plus = __INITIALIZE_KIND,
     Minus,
@@ -262,7 +261,7 @@ class Identifier final : public ASTNode {
   const std::string _name;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Identifier, ASTNode);
+  __INITIALIZE_NODE_RTTI(Identifier, ASTNode);
   Identifier(Location loc, const std::string &name)
       : ASTNode(loc, (ASTNode::Kind)__id), _name(name){};
   inline const std::string &getName() const { return _name; }
@@ -273,7 +272,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class LValue : public Expression {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(LValue, Expression);
+  __INITIALIZE_NODE_RTTI(LValue, Expression);
   enum class Kind : uint64_t { Ident = __INITIALIZE_KIND, MemberAccess };
 
   inline Kind getKind() const { return _kind; }
@@ -297,7 +296,7 @@ class MemberAccess final : public LValue {
   std::unique_ptr<Expression> _obj;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(MemberAccess, LValue);
+  __INITIALIZE_NODE_RTTI(MemberAccess, LValue);
   MemberAccess(const Location loc, std::unique_ptr<Identifier> member,
                std::unique_ptr<Expression> object)
       : LValue(loc, LValue::Kind::MemberAccess), _member(std::move(member)),
@@ -317,7 +316,7 @@ class IdentifierExpression final : public LValue {
   std::unique_ptr<Identifier> _var;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Ident, LValue);
+  __INITIALIZE_NODE_RTTI(Ident, LValue);
   IdentifierExpression(Location loc, std::unique_ptr<Identifier> var)
       : LValue(loc, LValue::Kind::Ident), _var(std::move(var)) {}
 
@@ -332,7 +331,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class Decl : public ASTNode {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Decl, ASTNode);
+  __INITIALIZE_NODE_RTTI(Decl, ASTNode);
   enum class Kind { Var = __INITIALIZE_KIND, Member };
   inline const Identifier &getType() const { return *_type; }
   inline bool isMemberDecl() const { return _kind == Kind::Member; }
@@ -353,7 +352,7 @@ class VarDecl final : public Decl {
   std::unique_ptr<IdentifierExpression> _var;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Var, Decl);
+  __INITIALIZE_NODE_RTTI(Var, Decl);
   VarDecl(const Location &loc, std::unique_ptr<IdentifierExpression> var,
           std::unique_ptr<Identifier> type)
       : Decl(loc, std::move(type), Kind::Var), _var(std::move(var)) {}
@@ -368,7 +367,7 @@ class StaticMemberDecl final : public Decl {
   std::unique_ptr<MemberAccess> _object;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Member, Decl);
+  __INITIALIZE_NODE_RTTI(Member, Decl);
   StaticMemberDecl(Location loc, std::unique_ptr<MemberAccess> var,
                    std::unique_ptr<Identifier> type)
       : Decl(loc, std::move(type), Kind::Member), _object(std::move(var)) {}
@@ -385,7 +384,7 @@ protected:
   std::unique_ptr<Expression> _rvalue;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Assignment, Statement);
+  __INITIALIZE_NODE_RTTI(Assignment, Statement);
   Assignment(Location loc, std::unique_ptr<LValue> lvalue,
              std::unique_ptr<Expression> rvalue)
       : Statement(loc, Statement::Kind::Assignment), _lvalue(std::move(lvalue)),
@@ -404,7 +403,7 @@ protected:
   std::unique_ptr<Expression> _rvalue;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(StaticAssignment, Statement);
+  __INITIALIZE_NODE_RTTI(StaticAssignment, Statement);
   StaticAssignment(Location loc, std::unique_ptr<Decl> decl,
                    std::unique_ptr<Expression> rvalue)
       : Statement(loc, Statement::Kind::StaticAssignment),
@@ -432,7 +431,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class IntegerLiteral final : public Expression, public Literal<long int> {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(IntegerLiteral, Expression);
+  __INITIALIZE_NODE_RTTI(IntegerLiteral, Expression);
   IntegerLiteral(Location loc, long int integer)
       : Expression(loc, Expression::Kind::IntegerLiteral), Literal<long>(
                                                                integer) {}
@@ -443,7 +442,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class FloatLiteral final : public Expression, public Literal<double> {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(FloatLiteral, Expression);
+  __INITIALIZE_NODE_RTTI(FloatLiteral, Expression);
   FloatLiteral(Location loc, double theFloat)
       : Expression(loc, Expression::Kind::FloatLiteral), Literal<double>(
                                                              theFloat) {}
@@ -454,7 +453,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class BoolLiteral final : public Expression, public Literal<bool> {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(BoolLiteral, Expression);
+  __INITIALIZE_NODE_RTTI(BoolLiteral, Expression);
   BoolLiteral(Location loc, bool boolean)
       : Expression(loc, Expression::Kind::BoolLiteral), Literal<bool>(boolean) {
   }
@@ -465,7 +464,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class NothingLiteral final : public Expression {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(NothingLiteral, Expression);
+  __INITIALIZE_NODE_RTTI(NothingLiteral, Expression);
   explicit NothingLiteral(Location loc)
       : Expression(loc, Expression::Kind::NothingLiteral) {}
 };
@@ -475,7 +474,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class StringLiteral final : public Expression, public Literal<std::string> {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(StringLiteral, Expression);
+  __INITIALIZE_NODE_RTTI(StringLiteral, Expression);
   StringLiteral(Location loc, std::string text)
       : Expression(loc, Expression::Kind::StringLiteral), Literal<std::string>(
                                                               std::move(text)) {
@@ -489,7 +488,7 @@ class Return final : public Statement {
   std::unique_ptr<Expression> _retVal;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Return, Statement);
+  __INITIALIZE_NODE_RTTI(Return, Statement);
   explicit Return(Location loc, std::unique_ptr<Expression> retVal)
       : Statement(loc, Statement::Kind::Return), _retVal(std::move(retVal)) {}
 
@@ -503,7 +502,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class Arguments final : public Sequence<Expression>, public ASTNode {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Arguments, ASTNode);
+  __INITIALIZE_NODE_RTTI(Arguments, ASTNode);
   explicit Arguments(const Location &loc) : ASTNode(loc, (ASTNode::Kind)__id) {}
 };
 
@@ -514,7 +513,7 @@ class PrintStatement final : public Statement {
   std::unique_ptr<Arguments> exprList;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Print, Statement);
+  __INITIALIZE_NODE_RTTI(Print, Statement);
   PrintStatement(Location loc, std::unique_ptr<Arguments> exprList)
       : Statement(loc, Statement::Kind::Print), exprList(std::move(exprList)) {}
 
@@ -526,7 +525,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class Parameters final : public Sequence<VarDecl>, public ASTNode {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Parameters, ASTNode);
+  __INITIALIZE_NODE_RTTI(Parameters, ASTNode);
   explicit Parameters(const Location &loc)
       : ASTNode(loc, (ASTNode::Kind)__id) {}
 };
@@ -541,7 +540,7 @@ class Method final : public ASTNode {
   std::unique_ptr<CompoundStmt> _body;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Method, ASTNode);
+  __INITIALIZE_NODE_RTTI(Method, ASTNode);
   Method(const Location &loc, std::unique_ptr<Parameters> params,
          std::unique_ptr<Identifier> name,
          std::unique_ptr<Identifier> returnType,
@@ -561,7 +560,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class Methods final : public Sequence<Method>, public ASTNode {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Methods, ASTNode);
+  __INITIALIZE_NODE_RTTI(Methods, ASTNode);
   explicit Methods(const Location &loc) : ASTNode(loc, (ASTNode::Kind)__id) {}
 };
 
@@ -575,7 +574,7 @@ class Class final : public ASTNode {
   std::unique_ptr<Identifier> _super;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Class, ASTNode);
+  __INITIALIZE_NODE_RTTI(Class, ASTNode);
   Class(const Location &loc, std::unique_ptr<Methods> methods,
         std::unique_ptr<Identifier> name, std::unique_ptr<Method> constructor,
         std::unique_ptr<Identifier> super = nullptr)
@@ -596,7 +595,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class Classes final : public Sequence<Class>, public ASTNode {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Classes, ASTNode);
+  __INITIALIZE_NODE_RTTI(Classes, ASTNode);
   explicit Classes(const Location &loc) : ASTNode(loc, (ASTNode::Kind)__id) {}
 };
 
@@ -608,7 +607,7 @@ class Call final : public Expression {
   std::unique_ptr<Arguments> _args;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(Call, Expression);
+  __INITIALIZE_NODE_RTTI(Call, Expression);
   Call(const Location &loc, std::unique_ptr<LValue> callee,
        std::unique_ptr<Arguments> args)
       : Expression(loc, Expression::Kind::Call), _callee(std::move(callee)),
@@ -627,7 +626,7 @@ class If final : public Statement {
   std::unique_ptr<CompoundStmt> _elseStmts;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(If, Statement);
+  __INITIALIZE_NODE_RTTI(If, Statement);
   If(Location loc, std::unique_ptr<Expression> cond,
      std::unique_ptr<CompoundStmt> ifStmts,
      std::unique_ptr<CompoundStmt> elseStmts)
@@ -648,7 +647,7 @@ class While final : public Statement {
   std::unique_ptr<CompoundStmt> _block;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(While, Statement);
+  __INITIALIZE_NODE_RTTI(While, Statement);
   While(Location loc, std::unique_ptr<Expression> cond,
         std::unique_ptr<CompoundStmt> stmts)
       : Statement(loc, Statement::Kind::While), _cond(std::move(cond)),
@@ -666,7 +665,7 @@ class TypeSwitchCase final : public Statement {
   std::unique_ptr<CompoundStmt> _block;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(TypeSwitchCase, Statement);
+  __INITIALIZE_NODE_RTTI(TypeSwitchCase, Statement);
   TypeSwitchCase(Location loc, std::unique_ptr<VarDecl> varDecl,
                  std::unique_ptr<CompoundStmt> stmts)
       : Statement(loc, Statement::Kind::TypeSwitchCase),
@@ -681,7 +680,7 @@ public:
 /// ===-------------------------------------------------------------------=== //
 class TypeAlternatives final : public Sequence<TypeSwitchCase>, public ASTNode {
 public:
-  __INITIALIZE_NODE_TYPE_INFO(TypeAlternatives, ASTNode);
+  __INITIALIZE_NODE_RTTI(TypeAlternatives, ASTNode);
   explicit TypeAlternatives(const Location &loc)
       : ASTNode(loc, (ASTNode::Kind)__id) {}
 };
@@ -694,7 +693,7 @@ class TypeSwitch final : public Statement {
   std::unique_ptr<TypeAlternatives> _cases;
 
 public:
-  __INITIALIZE_NODE_TYPE_INFO(TypeSwitch, Statement);
+  __INITIALIZE_NODE_RTTI(TypeSwitch, Statement);
   TypeSwitch(Location loc, std::unique_ptr<LValue> value,
              std::unique_ptr<TypeAlternatives> alts)
       : Statement(loc, Statement::Kind::TypeSwitch), _value(std::move(value)),

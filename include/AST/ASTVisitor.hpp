@@ -35,6 +35,37 @@ public:
   return getDerived().visit##NODE(static_cast<const NODE &>((OBJ)),            \
                                   std::forward<Args>(args)...)
 
+  RetType visitASTNode(const ASTNode &node, Args &&...args) {
+    switch (node.getKind()) {
+    case ASTNode::Kind::TranslationUnit:
+      DISPATCH(TranslationUnit, node);
+    case ASTNode::Kind::Statement:
+      DISPATCH(Statement, node);
+    case ASTNode::Kind::Expression:
+      DISPATCH(Expression, node);
+    case ASTNode::Kind::Decl:
+      DISPATCH(Decl, node);
+    case ASTNode::Kind::Identifier:
+      DISPATCH(Identifier, node);
+    case ASTNode::Kind::Arguments:
+      DISPATCH(Arguments, node);
+    case ASTNode::Kind::Parameters:
+      DISPATCH(Parameters, node);
+    case ASTNode::Kind::Class:
+      DISPATCH(Class, node);
+    case ASTNode::Kind::Classes:
+      DISPATCH(Classes, node);
+    case ASTNode::Kind::Method:
+      DISPATCH(Method, node);
+    case ASTNode::Kind::Methods:
+      DISPATCH(Methods, node);
+    case ASTNode::Kind::TypeAlternatives:
+      DISPATCH(TypeAlternatives, node);
+    case ASTNode::Kind::CompoundStmt:
+      DISPATCH(CompoundStmt, node);
+    }
+  }
+
   /// Abstract node handlers that dispatch to concrete subtype in the AST
   RetType visitLValue(const LValue &lValue, Args &&...args) {
     switch (lValue.getKind()) {

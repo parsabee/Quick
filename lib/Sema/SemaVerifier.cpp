@@ -238,7 +238,7 @@ namespace compiler {
 StatusOr<TypeCheckedObject> TypeCheck(ParsedObject parsedObject) {
   Status status = sema::verify(parsedObject.getFile(),
                          parsedObject.getTranslationUnit());
-  if (status != Status::OK)
+  if (!ok(status))
     return status;
 
   return TypeCheckedObject(std::move(parsedObject));
