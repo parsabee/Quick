@@ -31,7 +31,6 @@ protected:
     TranslationUnit = 1,
     Statement,
     Expression,
-    LValue,
     Decl,
     Identifier,
     Arguments,
@@ -56,12 +55,12 @@ public:
   static constexpr uint64_t __id = 0;
   static constexpr uint64_t __sub_type_id_padding = 8;
   static constexpr uint64_t __remaining_bits = 64 - __sub_type_id_padding;
-  static constexpr uint64_t __mask = __id << __remaining_bits;
-  virtual uint64_t __get_type_dyn_mask() const = 0;
+  static constexpr uint64_t __mask = ((uint64_t)~0) << __remaining_bits;
+  virtual uint64_t __get_type_dyn_id() const = 0;
 
   /// this function acts as a dynamic cast for ASTNodes
   template <typename CastT> const CastT *as_a() const {
-    if ((this->__get_type_dyn_mask() & CastT::__mask) == CastT::__mask) {
+    if ((this->__get_type_dyn_id() & CastT::__mask) == CastT::__id) {
       return static_cast<const CastT *>(this);
     }
     return nullptr;
@@ -77,15 +76,20 @@ private:
   Kind _kind;
 };
 
-/// Initializes dynamic type info inside an ASTNode class definition
+/// ===-------------------------------------------------------------------=== //
+/// This macro declares compile time type info for an ASTNode subtype
 #define __INITIALIZE_NODE_TYPE_INFO(NODE, PARENT)                              \
-  static constexpr uint64_t __id = (uint64_t)PARENT::Kind::NODE;               \
   static constexpr uint64_t __remaining_bits =                                 \
       PARENT::__remaining_bits - __sub_type_id_padding;                        \
-  static constexpr uint64_t __mask = __id << __remaining_bits;                 \
-  uint64_t __get_type_dyn_mask() const override { return __mask; }
+  static constexpr uint64_t __raw_id = (uint64_t)PARENT::Kind::NODE;           \
+  static constexpr uint64_t __id = __raw_id << __remaining_bits;               \
+  static constexpr uint64_t __mask = ((uint64_t)~0) << __remaining_bits;       \
+  uint64_t __get_type_dyn_id() const override { return __id; }
 
-#define __INIT_KIND ((__id << __sub_type_id_padding) + 1)
+/// If the node has subtypes, declare an Enum class for the subtypes and
+/// initialize it with this
+#define __INITIALIZE_KIND ((__raw_id << __sub_type_id_padding) + 1)
+/// ===-------------------------------------------------------------------=== //
 
 class CompoundStmt; // Forward ref
 class Classes;
@@ -115,7 +119,7 @@ class Statement : public ASTNode {
 public:
   __INITIALIZE_NODE_TYPE_INFO(Statement, ASTNode);
   enum class Kind : uint64_t {
-    ValueStmt = __INIT_KIND,
+    ValueStmt = __INITIALIZE_KIND,
     Assignment,
     StaticAssignment,
     Return,
@@ -159,7 +163,7 @@ class Expression : public ASTNode {
 public:
   __INITIALIZE_NODE_TYPE_INFO(Expression, ASTNode);
   enum class Kind {
-    Call = __INIT_KIND,
+    Call = __INITIALIZE_KIND,
     UnaryOperator,
     BinaryOperator,
     LValue,
@@ -199,7 +203,7 @@ public:
 class UnaryOperator final : public Expression {
 public:
   __INITIALIZE_NODE_TYPE_INFO(UnaryOperator, Expression);
-  enum class Operator { Neg = __INIT_KIND, Not };
+  enum class Operator { Neg = __INITIALIZE_KIND, Not };
 
   UnaryOperator(Location loc, Operator opCode,
                 std::unique_ptr<Expression> operand)
@@ -221,7 +225,7 @@ class BinaryOperator final : public Expression {
 public:
   __INITIALIZE_NODE_TYPE_INFO(BinaryOperator, Expression);
   enum class Operator : uint64_t {
-    Plus = __INIT_KIND,
+    Plus = __INITIALIZE_KIND,
     Minus,
     Times,
     Divide,
@@ -270,7 +274,7 @@ public:
 class LValue : public Expression {
 public:
   __INITIALIZE_NODE_TYPE_INFO(LValue, Expression);
-  enum class Kind : uint64_t { Ident = __INIT_KIND, MemberAccess };
+  enum class Kind : uint64_t { Ident = __INITIALIZE_KIND, MemberAccess };
 
   inline Kind getKind() const { return _kind; }
   virtual const std::string &getVarName() const = 0;
@@ -329,7 +333,7 @@ public:
 class Decl : public ASTNode {
 public:
   __INITIALIZE_NODE_TYPE_INFO(Decl, ASTNode);
-  enum class Kind { Var = __INIT_KIND, Member };
+  enum class Kind { Var = __INITIALIZE_KIND, Member };
   inline const Identifier &getType() const { return *_type; }
   inline bool isMemberDecl() const { return _kind == Kind::Member; }
   inline Kind getKind() const { return _kind; }

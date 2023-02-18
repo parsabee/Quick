@@ -15,8 +15,7 @@ bool CompoundStmt::hasReturn() const {
       return true;
 
     // Checking if all paths of an If statement return
-    if (stmt->getKind() == Statement::Kind::If) {
-      auto *ifStmt = static_cast<If *>(stmt.get());
+    if (auto *ifStmt = stmt->as_a<If>()) {
       if (!ifStmt->getElseBlock())
         continue;
       if (ifStmt->getIfBlock().hasReturn() &&

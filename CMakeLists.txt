@@ -80,11 +80,8 @@ if (NOT QUICK_LLVM_EXECUTABLE)
   quick_install_prebuilt_llvm(${quick_llvm_platform} ${quick_llvm_target} ${quick_llvm_version} ${quick_llvm_install_dir})
 endif ()
 
-# Check GTest
-quick_check_gtest(${quick_gtest_version} ${quick_gtest_install_dir})
-if (NOT QUICK_GTEST_MAIN_LIBRARY)
-  quick_install_gtest(${quick_gtest_version} ${quick_gtest_install_dir})
-endif()
+# Install GTest
+quick_install_gtest(${quick_gtest_version} ${quick_gtest_install_dir})
 
 # Create virtual env and install pip packages
 quick_create_python_virtual_env(${quick_python_virtual_env})
@@ -92,9 +89,6 @@ quick_pip_install_executable("lit")
 quick_pip_install_executable("filecheck")
 
 # Include paths
-message(STATUS "adding include paths:"
-    ${QUICK_LLVM_INCLUDE_DIR})
-
 include_directories(
     ${QUICK_LLVM_INCLUDE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}

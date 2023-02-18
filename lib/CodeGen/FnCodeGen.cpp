@@ -116,7 +116,6 @@ llvm::Value *ExprCodeGen::visitNothingLiteral(const ast::NothingLiteral &) {
 }
 
 llvm::Value *ExprCodeGen::visitCall(const ast::Call &call) {
-
   // generating code for the arguments
   auto argVals =
       llvm::to_vector<4>(llvm::map_range(call.getArgs(), [&](auto &expr) {
@@ -125,9 +124,8 @@ llvm::Value *ExprCodeGen::visitCall(const ast::Call &call) {
         return v;
       }));
 
-  if (call.getCallee().getKind() == LValue::Kind::Ident) {
+  if (auto *ident = call.getCallee().as_a<IdentifierExpression>()) {
     // constructor
-    auto *ident = static_cast<const IdentifierExpression *>(&call.getCallee());
     auto *irType = typeRegistery.get(ident->getVarName());
     assert(irType);
     auto *constructor = getOrCreateFnSym(ident->getVarName() + "_create",
@@ -140,8 +138,8 @@ llvm::Value *ExprCodeGen::visitCall(const ast::Call &call) {
           builder.CreateBitCast(argVals[i], constructor->getArg(i)->getType()));
 
     return builder.CreateCall(constructor, castVals);
-  } else {
-    auto *memAccess = static_cast<const MemberAccess *>(&call.getCallee());
+  } else if (auto *memAccess = call.getCallee().as_a<MemberAccess>()) {
+    // member access
     auto &methodName = call.getCallee().getVarName();
     auto *obj = visitExpression(memAccess->getObject());
     assert(obj);
@@ -149,6 +147,9 @@ llvm::Value *ExprCodeGen::visitCall(const ast::Call &call) {
     assert(irType);
     return irType->dispatch(builder, methodName.c_str(), obj, argVals, &module);
   }
+
+  // error
+  return nullptr;
 }
 
 llvm::Value *ExprCodeGen::visitIdentifierExpression(
@@ -475,12 +476,10 @@ bool FnCodeGen::visitAssignment(const Assignment &assignment) {
   if (!rhsLLVMVal)
     return false;
 
-  if (assignment.getLHS().getKind() == LValue::Kind::Ident) {
+  if (auto *lvalue = assignment.getLHS().as_a<IdentifierExpression>()) {
     auto *llvmType = tr.get(rhsLLVMVal->getType());
     assert(llvmType && "type must have been registered by this point -- bug");
-    auto &lvalue =
-        static_cast<const IdentifierExpression &>(assignment.getLHS());
-    auto &var = lvalue.getVar().getName();
+    auto &var = lvalue->getVar().getName();
     if (auto *storage = llvmEnv.lookup(var)) {
       llvmType->instantiate(builder, storage, {rhsLLVMVal});
     } else {
