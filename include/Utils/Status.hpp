@@ -31,8 +31,6 @@ enum class Status {
   VALUE_RELEASED,
 };
 
-inline bool ok(Status status) { return status == Status::OK; }
-
 //===----------------------------------------------------------------------===//
 // StatusOr - different systems may return StatusOr<Type>, constructed from
 // an object or status. Type `T` must have a default constructor
@@ -62,6 +60,12 @@ public:
     return std::move(_value);
   }
 };
+
+inline bool ok(Status status) { return status == Status::OK; }
+
+template<typename T>
+inline bool ok(StatusOr<T> &status) { return status.ok(); }
+
 
 /// Exists if status is not ok, otherwise returns value
 #define EXIT_ON_ERROR(STATUS_OR)                                               \

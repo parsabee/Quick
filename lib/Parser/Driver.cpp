@@ -7,13 +7,14 @@
 
 #include "Parser/Driver.hpp"
 #include "Compiler/Pipeline.hpp"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/FileUtilities.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace quick {
 namespace parser {
 
-int Driver::parse(const std::string &filename) {
-  _curFile = filename;
-  _location.initialize(&_curFile);
+int Driver::parse() {
   _scanBegin();
   yy::parser parser(*this);
 #ifdef YYDEBUG
@@ -23,10 +24,17 @@ int Driver::parse(const std::string &filename) {
   _scanEnd();
   return res;
 }
+
+int Driver::parseFile(const std::string &filename) {
+  _curFile = filename;
+  _location.initialize(&_curFile);
+  return parse();
+}
+
 } // namespace parser
 
 namespace compiler {
-StatusOr<ParsedObject> Parse(const std::string &filename) {
+StatusOr<ParsedObject> ParseFile(const std::string &filename) {
   parser::Driver drv;
 
   std::fstream file(filename);
@@ -35,11 +43,23 @@ StatusOr<ParsedObject> Parse(const std::string &filename) {
     return Status::INVALID_SOURCE;
   }
 
-  int programError = drv.parse(filename);
+  int programError = drv.parseFile(filename);
   if (programError)
     return Status::PARSE_ERROR;
-
   return ParsedObject(drv.releaseRoot(), std::move(file), filename);
 }
+
+/// Writes string to a temp file and parses that
+StatusOr<ParsedObject> ParseString(const std::string &source) {
+  llvm::SmallString<128> temp_file_path;
+  llvm::sys::fs::createTemporaryFile("anonymous", "qk", temp_file_path);
+  llvm::FileRemover remover(temp_file_path);
+  std::error_code err;
+  llvm::raw_fd_ostream file(temp_file_path, err);
+  file << source;
+  file.close();
+  return ParseFile(temp_file_path.c_str());
+}
+
 } // namespace compiler
 } // namespace quick

@@ -46,25 +46,22 @@ type::QType *TypeChecker::visitBinaryOperator(const BinaryOperator &binOp) {
     if (const auto *method = lhsType->lookUpMethod(m, {rhsType})) {
       auto &args = method->getFormals();
       if (args.size() != 1) {
-        logError(file, binOp.getLocation(),
-                 "expected 1 argument to the binary operator");
+        logger.log(binOp, "expected 1 argument to the binary operator");
         return nullptr;
       }
 
       auto *argType = args.back().type;
       if (argType != rhsType && !rhsType->isDescendentOf(argType)) {
-        logError(file, binOp.getLocation(),
-                 "can't use argument of type <" + rhsType->getName() +
-                     "> where type <" + argType->getName() + "> is expected.");
+        logger.log(binOp, "can't use argument of type <", rhsType->getName(),
+                   "> where type <", argType->getName(), "> is expected.");
         return nullptr;
       }
 
       return method->getReturnType();
     } else {
-      logError(file, binOp.getLocation(),
-               std::string("method <") + m + "> with parameters <" +
-                   rhsType->getName() + "> is not defined for type <" +
-                   lhsType->getName() + ">");
+      logger.log(binOp, "method <", m, "> with parameters <",
+                 rhsType->getName(), "> is not defined for type <",
+                 lhsType->getName(), ">");
       return nullptr;
     }
   };
@@ -105,16 +102,14 @@ type::QType *TypeChecker::visitUnaryOperator(const UnaryOperator &unOp) {
   auto checkUnOp = [&](const char *op) -> type::QType * {
     if (const auto *method = type->lookUpMethod(op, {})) {
       if (!method->getFormals().empty()) {
-        logError(file, unOp.getLocation(),
-                 "unary operator doesn't take any arguments");
+        logger.log(unOp, "unary operator doesn't take any arguments");
         return nullptr;
       }
 
       return method->getReturnType();
     }
-    logError(file, unOp.getLocation(),
-             "object of type '" + type->getName() + "' has no operator '" + op +
-                 "'");
+    logger.log(unOp, "object of type '" + type->getName() +
+                         "' has no operator '" + op + "'");
     return nullptr;
   };
 
@@ -143,15 +138,13 @@ type::QType *TypeChecker::visitCall(const Call &call) {
     // it has to be a constructor
     auto type = tdb.getType(identExpr->getVarName());
     if (!type) {
-      logError(file, call.getLocation(),
-               "calling a constructor of a type that doesn't exist <" +
-                   identExpr->getVarName() + ">");
+      logger.log(call, "calling a constructor of a type that doesn't exist <" +
+                           identExpr->getVarName() + ">");
       return nullptr;
     }
 
     if (!type->getConstructor() || type::isPrimitive(type->getName())) {
-      logError(file, call.getLocation(),
-               "this type has no constructor <" + type->getName() + ">");
+      logger.log(call, "this type has no constructor <", type->getName(), ">");
       return nullptr;
     }
 
@@ -163,9 +156,8 @@ type::QType *TypeChecker::visitCall(const Call &call) {
 
     auto qMethod = objType->lookUpMethod(memAccess->getVarName(), argtypes);
     if (!qMethod) {
-      logError(file, call.getLocation(),
-               "object of type <" + objType->getName() +
-                   "> has no method named <" + memAccess->getVarName() + ">");
+      logger.log(call, "object of type <", objType->getName(),
+                 "> has no method named <", memAccess->getVarName(), ">");
       return nullptr;
     }
 
@@ -174,8 +166,7 @@ type::QType *TypeChecker::visitCall(const Call &call) {
   return nullptr;
 }
 
-type::QType *
-TypeChecker::visitMemberAccess(const MemberAccess &memberAccess) {
+type::QType *TypeChecker::visitMemberAccess(const MemberAccess &memberAccess) {
   auto type = visitExpression(memberAccess.getObject());
   if (!type)
     return nullptr;
@@ -183,9 +174,8 @@ TypeChecker::visitMemberAccess(const MemberAccess &memberAccess) {
   if (auto memberT = type->lookUpMember(memberAccess.getVarName()))
     return memberT;
 
-  logError(file, memberAccess.getLocation(),
-           "object of type <" + type->getName() + "> has no member <" +
-               memberAccess.getVarName() + ">");
+  logger.log(memberAccess, "object of type <", type->getName(), "> has no ",
+             "member <", memberAccess.getVarName(), ">");
   return nullptr;
 }
 
@@ -194,9 +184,8 @@ TypeChecker::visitIdentifierExpression(const IdentifierExpression &lvalue) {
   if (auto t = env.lookup(lvalue.getVar().getName()))
     return t;
   else {
-    logError(file, lvalue.getLocation(),
-             "identifier <" + lvalue.getVar().getName() +
-                 "> is not declared in current scope");
+    logger.log(lvalue, "identifier <", lvalue.getVar().getName(),
+               "> is not declared in current scope");
     return nullptr;
   }
 }

@@ -20,6 +20,13 @@
 #include <string>
 
 namespace llvm {
+
+//===----------------------------------------------------------------------===//
+// FIXME: For some reason, llvm::IRBuilderBase::InsertPointGuard segfaults at
+//  destruct time. I have no idea why. I copied the code over and it works
+//  fine. Figure out why, reproducible on other machines ...
+// This class is copied over from llvm/IR/IRBuilder.h IRBuilderBase::
+//===----------------------------------------------------------------------===//
 class InsertPointGuard {
   IRBuilderBase &Builder;
   AssertingVH<BasicBlock> Block;
@@ -40,20 +47,5 @@ public:
   }
 };
 }
-
-namespace quick {
-  
-/// Seeks location `loc` in the `file` and prints it, as well as the `message`
-void logError(std::fstream &file, const ast::Location &loc,
-              const std::string &message,
-              const std::string &fname = "<unknown-file>");
-
-/// Prints `node`s code as well as `message`
-void logError(const ast::ASTNode &node, const std::string &message);
-
-/// Prints `message`
-void logError(const std::string &message);
-
-} // namespace quick
 
 #endif // QUICK_UTILS_UTILS_HPP

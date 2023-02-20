@@ -18,8 +18,11 @@ using namespace ast;
 bool StmtVerifier::visitIf(const ast::If &ifStmt) {
   if (auto type = typeChecker.visitExpression(ifStmt.getCond())) {
     if (type != tdb.getBoolType()) {
-      logError(file, ifStmt.getCond().getLocation(),
-               "Conditional expression doesn't reduce to < Bool > type");
+      //      logError(file, ifStmt.getCond().getLocation(),
+      //               "Conditional expression doesn't reduce to < Bool >
+      //               type");
+      logger.log(ifStmt.getCond(), "Conditional expression doesn't reduce to <"
+                                   " Bool > type");
       return false;
     }
   } else
@@ -40,9 +43,13 @@ bool StmtVerifier::visitIf(const ast::If &ifStmt) {
   (void)env.popCurrentScope();
 
   if (!env.mergeScope(newScope)) {
-    logError(file, ifStmt.getLocation(),
-             "Type conflict between variable declared in if and/or else stmts "
-             "body and parent scope");
+    //    logError(file, ifStmt.getLocation(),
+    //             "Type conflict between variable declared in if and/or else
+    //             stmts " "body and parent scope");
+    logger.log(
+        ifStmt,
+        "Type conflict between variable declared in if and/or else stmts "
+        "body and parent scope");
     return false;
   }
 
@@ -60,9 +67,13 @@ bool StmtVerifier::visitAssignment(const ast::Assignment &assignment) {
     auto &var = ident->getVar().getName();
     if (auto *varType = env.lookup(var)) {
       if (varType != rhsType && !rhsType->isDescendentOf(varType)) {
-        logError(file, assignment.getLocation(),
-                 "Conflict between rhs type <" + rhsType->getName() +
-                     "> and variable type <" + varType->getName() + ">");
+        //        logError(file, assignment.getLocation(),
+        //                 "Conflict between rhs type <" + rhsType->getName() +
+        //                     "> and variable type <" + varType->getName() +
+        //                     ">");
+        logger.log(assignment, "Conflict between rhs type <",
+                   rhsType->getName(), "> and variable type <",
+                   varType->getName(), ">");
         return false;
       }
     } else {
@@ -76,10 +87,14 @@ bool StmtVerifier::visitAssignment(const ast::Assignment &assignment) {
     auto *memberType = objType->lookUpMember(memAccess->getMember().getName());
     if (!memberType) {
       if (!isConstructor) {
-        logError(file, memAccess->getLocation(),
-                 "type <" + objType->getName() + "> has no member <" +
-                     memAccess->getMember().getName() +
-                     ">. Cannot add members outside of the types constructor");
+        //        logError(file, memAccess->getLocation(),
+        //                 "type <" + objType->getName() + "> has no member <" +
+        //                     memAccess->getMember().getName() +
+        //                     ">. Cannot add members outside of the types
+        //                     constructor");
+        logger.log(*memAccess, "type <", objType->getName(),
+                   "> has no member <", memAccess->getMember().getName(),
+                   ">. Cannot add members outside of the types constructor");
         return false;
       }
       objType->insertMember(
@@ -87,9 +102,11 @@ bool StmtVerifier::visitAssignment(const ast::Assignment &assignment) {
 
     } else if (memberType->getName() != rhsType->getName() &&
                !rhsType->isDescendentOf(memberType)) {
-      logError(file, assignment.getLocation(),
-               "Conflict between rhs type <" + rhsType->getName() +
-                   "> and lhs type <" + memberType->getName() + ">");
+      //      logError(file, assignment.getLocation(),
+      //               "Conflict between rhs type <" + rhsType->getName() +
+      //                   "> and lhs type <" + memberType->getName() + ">");
+      logger.log(assignment, "Conflict between rhs type <", rhsType->getName(),
+                 "> and lhs type <", memberType->getName(), ">");
       return false;
     }
   }
@@ -101,8 +118,9 @@ bool StmtVerifier::visitStaticAssignment(
     const ast::StaticAssignment &assignment) {
   auto &decl = assignment.getDecl();
   if (decl.isMemberDecl() && !isConstructor) {
-    logError(file, decl.getLocation(),
-             "Member declaration outside of a class constructor");
+    logger.log(decl, "Member declaration outside of a class constructor");
+    //    logError(file, decl.getLocation(),
+    //             "Member declaration outside of a class constructor");
     return false;
   }
 
@@ -112,15 +130,22 @@ bool StmtVerifier::visitStaticAssignment(
 
   auto lhsType = tdb.getType(decl.getType().getName());
   if (!lhsType) {
-    logError(file, decl.getLocation(),
-             "No such type <" + decl.getType().getName() + ">");
+    //    logError(file, decl.getLocation(),
+    //             "No such type <" + decl.getType().getName() + ">");
+    logger.log(decl, "No such type <", decl.getType().getName(), ">");
+
     return false;
   }
 
   if (lhsType != rhsType && !rhsType->isDescendentOf(lhsType)) {
-    logError(file, assignment.getLocation(),
-             "Conflict between declared type <" + lhsType->getName() +
-                 "> and right hand side type <" + rhsType->getName() + ">");
+    //    logError(file, assignment.getLocation(),
+    //             "Conflict between declared type <" + lhsType->getName() +
+    //                 "> and right hand side type <" + rhsType->getName() +
+    //                 ">");
+    logger.log(assignment, "Conflict between declared type <",
+               lhsType->getName(), "> and right hand side type <",
+               rhsType->getName(), ">");
+
     return false;
   }
 
@@ -134,17 +159,22 @@ bool StmtVerifier::visitStaticAssignment(
         assert(type);
         auto *varType = tdb.getType(memDecl.getType().getName());
         if (!varType) {
-          logError(file, memDecl.getLocation(), "type not found");
+          //          logError(file, memDecl.getLocation(), "type not found");
+          logger.log(memDecl, "type not found");
           return false;
         }
         if (type->getMembers().count(var)) {
-          logError(file, decl.getLocation(), "Member already declared");
+          //          logError(file, decl.getLocation(), "Member already
+          //          declared");
+          logger.log(decl, "Member already declared");
+
           return false;
         }
         type->insertMember({varType, var});
       } else {
-        logError(file, decl.getLocation(),
-                 "Cannot declare member outside of type definition");
+        //        logError(file, decl.getLocation(),
+        //                 "Cannot declare member outside of type definition");
+        logger.log(decl, "Cannot declare member outside of type definition");
         return false;
       }
     }
@@ -152,8 +182,9 @@ bool StmtVerifier::visitStaticAssignment(
     auto &varDecl = static_cast<const VarDecl &>(decl);
     auto &var = varDecl.getVar().getName();
     if (env.back().lookup(var)) {
-      logError(file, decl.getLocation(),
-               "Redeclaration of variable <" + var + ">");
+      //      logError(file, decl.getLocation(),
+      //               "Redeclaration of variable <" + var + ">");
+      logger.log(decl, "Redeclaration of variable <", var, ">");
       return false;
     }
     env.back().insert({var, lhsType});
@@ -165,8 +196,11 @@ bool StmtVerifier::visitStaticAssignment(
 bool StmtVerifier::visitWhile(const ast::While &whileStmt) {
   if (auto type = typeChecker.visitExpression(whileStmt.getCond())) {
     if (type != tdb.getBoolType()) {
-      logError(file, whileStmt.getCond().getLocation(),
-               "Conditional expression doesn't reduce to < Bool > type");
+      //      logError(file, whileStmt.getCond().getLocation(),
+      //               "Conditional expression doesn't reduce to < Bool >
+      //               type");
+      logger.log(whileStmt.getCond(), "Conditional expression doesn't reduce "
+                                      "to < Bool > type");
       return false;
     }
   } else {
@@ -191,8 +225,11 @@ bool StmtVerifier::visitValueStmt(const ast::ValueStmt &valueStmt) {
 
 bool StmtVerifier::visitReturn(const ast::Return &returnStmt) {
   if (isConstructor) {
-    logError(file, returnStmt.getLocation(),
-             "return statement can't be used in the body of a constructor");
+    //    logError(file, returnStmt.getLocation(),
+    //             "return statement can't be used in the body of a
+    //             constructor");
+    logger.log(returnStmt, "return statement can't be used in the body of a "
+                           "constructor");
     return false;
   }
 
@@ -204,10 +241,13 @@ bool StmtVerifier::visitReturn(const ast::Return &returnStmt) {
 
       if (retType->getName() != returnType->getName() &&
           !retType->isDescendentOf(returnType)) {
-        logError(file, returnStmt.getLocation(),
-                 "Expected <" + returnType->getName() +
-                     "> type to be returned but got <" + retType->getName() +
-                     ">");
+        //        logError(file, returnStmt.getLocation(),
+        //                 "Expected <" + returnType->getName() +
+        //                     "> type to be returned but got <" +
+        //                     retType->getName() +
+        //                     ">");
+        logger.log(returnStmt, "Expected <", returnType->getName(),
+                   "> type to be returned but got <", retType->getName(), ">");
         return false;
       }
     }
@@ -232,14 +272,19 @@ bool StmtVerifier::visitTypeSwitch(const ast::TypeSwitch &typeSwitch) {
     auto &typeName = c->getVarDecl().getType().getName();
     auto cType = tdb.getType(typeName);
     if (!cType) {
-      logError(file, c->getLocation(), "type <" + typeName + "> not found");
+      //      logError(file, c->getLocation(), "type <" + typeName + "> not
+      //      found");
+      logger.log(*c, "type <", typeName, "> not found");
+
       return false;
     }
 
     if (!cType->isDescendentOf(curType)) {
-      logError(file, c->getLocation(),
-               "type <" + typeName + "> is not a descendent of type <" +
-                   curType->getName() + ">");
+      //      logError(file, c->getLocation(),
+      //               "type <" + typeName + "> is not a descendent of type <" +
+      //                   curType->getName() + ">");
+      logger.log(*c, "type <", typeName, "> is not a descendent of type <",
+                 curType->getName(), ">");
       return false;
     }
 
@@ -268,12 +313,12 @@ bool StmtVerifier::visitTypeSwitchCase(
   return visitCompoundStmt(typeSwitchCase.getBlock());
 }
 
-Status StmtVerifier::verify(std::fstream &file,
+Status StmtVerifier::verify(type::QTypeDB &db, SourceLogger &logger,
                             const ast::CompoundStmt &cmpStmt, Env &env,
                             type::QType *parentType, type::QType *returnType,
                             bool isConstructor, bool inANewScope,
                             bool addThisToScope) {
-  StmtVerifier stmtVerifier(file, cmpStmt, env, parentType, returnType,
+  StmtVerifier stmtVerifier(db, logger, cmpStmt, env, parentType, returnType,
                             isConstructor);
   if (inANewScope) {
     (void)env.addNewScope();

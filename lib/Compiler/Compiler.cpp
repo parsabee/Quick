@@ -27,6 +27,8 @@ StatusOr<CodeGenedObject> CodeGen(TypeCheckedObject typecheckedObject) {
   auto status = Status::OK;
   const TranslationUnit &root = typecheckedObject.getTranslationUnit();
   CodeGenedObject codeGened(std::move(typecheckedObject));
+  auto &tdb = codeGened.getTypeDB();
+
   // Setting up llvm module and builder
   auto *cntx = codeGened.getContext();
   auto module =
@@ -36,14 +38,15 @@ StatusOr<CodeGenedObject> CodeGen(TypeCheckedObject typecheckedObject) {
 
   // Generating code for classes and methods
   for (auto &clss : root.getClasses()) {
-    status = ClassCodeGen::generate(*clss, *module, builder, tr);
+    status = ClassCodeGen::generate(tdb, *clss, *module, builder, tr);
     if (!ok(status))
       return status;
   }
 
   // Generating code for the main function
   LLVMEnv env;
-  status = FnCodeGen::generate(builder, *module, root.getCompoundStmt(), tr, env);
+  status = FnCodeGen::generate(tdb, builder, *module, root.getCompoundStmt(),
+                               tr, env);
   if (!ok(status))
     return status;
 

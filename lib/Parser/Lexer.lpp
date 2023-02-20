@@ -126,7 +126,6 @@ make_FLOAT (const std::string &s, const yy::parser::location_type& loc)
   return yy::parser::make_FLOAT ((double) n, loc);
 }
 
-
 void
 quick::parser::Driver::_scanBegin()
 {

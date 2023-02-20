@@ -9,22 +9,21 @@
 #include "Compiler/Pipeline.hpp"
 #include "Sema/ClassVerifier.hpp"
 #include "Sema/StmtVerifier.hpp"
-#include "Utils/Utils.hpp"
 
 namespace quick {
 namespace sema {
 
 using namespace ast;
 
-static int registerClasses(std::fstream &file, type::QTypeDB &tdb,
+static int registerClasses(SourceLogger &logger, type::QTypeDB &tdb,
                            const Classes &clsses) {
   int numErrors = 0;
   // Registering all classes
   for (auto &clss : clsses) {
     auto &className = clss->getClassIdent().getName();
     if (tdb.getType(className)) {
-      logError(file, clss->getClassIdent().getLocation(),
-               "redefinition of class <" + className + ">");
+      logger.log(clss->getClassIdent(), "redefinition of class <", className,
+                 ">");
       numErrors++;
     } else {
       tdb.registerNewType(className, nullptr);
@@ -33,7 +32,7 @@ static int registerClasses(std::fstream &file, type::QTypeDB &tdb,
   return numErrors;
 }
 
-static int processMembers(std::fstream &file, type::QTypeDB &tdb,
+static int processMembers(SourceLogger &logger, type::QTypeDB &tdb,
                           const Classes &clsses) {
   int numErrors = 0;
   for (auto &clss : clsses) {
@@ -47,7 +46,7 @@ static int processMembers(std::fstream &file, type::QTypeDB &tdb,
       auto *pQtype = tdb.getType(pt);
       scope.insert({v, pQtype});
     }
-    if (StmtVerifier::verify(file, clss->getConstructor().getBody(), env,
+    if (StmtVerifier::verify(tdb, logger, clss->getConstructor().getBody(), env,
                              /*parentType*/ type, /*returnType*/ type,
                              /*isConstructor*/ true, /*addANewScope*/ false,
                              /*addThisToScope*/ true) != Status::OK) {
@@ -57,7 +56,7 @@ static int processMembers(std::fstream &file, type::QTypeDB &tdb,
   return numErrors;
 }
 
-static int processSuperTypes(std::fstream &file, type::QTypeDB &tdb,
+static int processSuperTypes(SourceLogger &logger, type::QTypeDB &tdb,
                              const Classes &clsses) {
   int numErrors = 0;
   for (auto &clss : clsses) {
@@ -69,8 +68,7 @@ static int processSuperTypes(std::fstream &file, type::QTypeDB &tdb,
       superType = tdb.getType(superName);
       if (!superType) {
         numErrors++;
-        logError(file, clss->getSuper()->getLocation(),
-                 "type not found <" + superName + ">");
+        logger.log(*clss->getSuper(), "type not found <" + superName + ">");
       }
     } else {
       superType = tdb.getType("Object");
@@ -84,7 +82,7 @@ static int processSuperTypes(std::fstream &file, type::QTypeDB &tdb,
   return numErrors;
 }
 
-static int processMethods(std::fstream &file, type::QTypeDB &tdb,
+static int processMethods(SourceLogger &logger, type::QTypeDB &tdb,
                           const Classes &clsses) {
   int numErrors = 0;
   for (auto &clss : clsses) {
@@ -119,11 +117,11 @@ static int processMethods(std::fstream &file, type::QTypeDB &tdb,
       if (override) {
         if (m->getParams().size() != override->getFormals().size()) {
           numErrors++;
-          logError(
-              file, m->getLocation(),
-              "overriding method with wrong number of parameters. Expected " +
-                  std::to_string(override->getFormals().size()) +
-                  " params, but got " + std::to_string(m->getParams().size()));
+          logger.log(
+              *m,
+              "overriding method with wrong number of parameters. Expected ",
+              std::to_string(override->getFormals().size()),
+              " params, but got ", std::to_string(m->getParams().size()));
           return false;
         }
 
@@ -131,9 +129,8 @@ static int processMethods(std::fstream &file, type::QTypeDB &tdb,
           auto &mParam = std::get<0>(pair);
           auto &formal = std::get<1>(pair);
           if (mParam->getType().getName() != formal.type->getName()) {
-            logError(file, mParam->getLocation(),
-                     "expected type <" + formal.type->getName() +
-                         "> but got <" + mParam->getType().getName() + ">");
+            logger.log(*mParam, "expected type <", formal.type->getName(),
+                       "> but got <", mParam->getType().getName(), ">");
             numErrors++;
             return false;
           }
@@ -144,9 +141,8 @@ static int processMethods(std::fstream &file, type::QTypeDB &tdb,
         auto pType = tdb.getType(p->getType().getName());
         if (!pType) {
           numErrors++;
-          logError(file, p->getLocation(),
-                   "parameter type <" + p->getType().getName() +
-                       "> does not exist.");
+          logger.log(*p, "parameter type <", p->getType().getName(),
+                     "> does not exist.");
           status = false;
         } else {
           formals.push_back({pType, p->getVar().getName()});
@@ -155,8 +151,7 @@ static int processMethods(std::fstream &file, type::QTypeDB &tdb,
 
       auto retType = tdb.getType(m->getReturnType().getName());
       if (!retType) {
-        logError(file, m->getReturnType().getLocation(),
-                 "return does not exist");
+        logger.log(m->getReturnType(), "return does not exist");
         status = false;
         numErrors++;
       }
@@ -191,19 +186,17 @@ static bool hasCircularInheritance(const Class &clss, type::QTypeDB &tdb) {
   return false;
 }
 
-Status verify(std::fstream &f, const ast::TranslationUnit &tu) {
+Status verify(type::QTypeDB &tdb, SourceLogger &logger,
+              const ast::TranslationUnit &tu) {
   Env environment;
   int numErrors = 0;
-  auto &tdb = type::QTypeDB::get();
-
-  numErrors += registerClasses(f, tdb, tu.getClasses());
-  numErrors += processSuperTypes(f, tdb, tu.getClasses());
-  numErrors += processMethods(f, tdb, tu.getClasses());
-  numErrors += processMembers(f, tdb, tu.getClasses());
+  numErrors += registerClasses(logger, tdb, tu.getClasses());
+  numErrors += processSuperTypes(logger, tdb, tu.getClasses());
+  numErrors += processMethods(logger, tdb, tu.getClasses());
+  numErrors += processMembers(logger, tdb, tu.getClasses());
   for (auto &clss : tu.getClasses()) {
     if (hasCircularInheritance(*clss, tdb)) {
-      logError(f, clss->getSuper()->getLocation(),
-               "circular inheritance detected");
+      logger.log(clss->getClassIdent(), "circular inheritance detected");
       return Status::ERROR;
     }
   }
@@ -215,12 +208,12 @@ Status verify(std::fstream &f, const ast::TranslationUnit &tu) {
 
   // Checking classes
   for (auto &clss : tu.getClasses()) {
-    if (ClassVerifier::verify(f, *clss) != Status::OK)
+    if (ClassVerifier::verify(tdb, logger, *clss) != Status::OK)
       numErrors++;
   }
 
   // Checking main
-  if (StmtVerifier::verify(f, tu.getCompoundStmt(), environment,
+  if (StmtVerifier::verify(tdb, logger, tu.getCompoundStmt(), environment,
                            /*parentType*/ nullptr,
                            /*returnType*/ tdb.getIntegerType()) != Status::OK)
     numErrors++;
@@ -236,12 +229,14 @@ Status verify(std::fstream &f, const ast::TranslationUnit &tu) {
 
 namespace compiler {
 StatusOr<TypeCheckedObject> TypeCheck(ParsedObject parsedObject) {
-  Status status = sema::verify(parsedObject.getFile(),
-                         parsedObject.getTranslationUnit());
+  auto tdb = std::unique_ptr<quick::sema::type::QTypeDB>(
+      new quick::sema::type::QTypeDB());
+  SourceLogger logger(parsedObject);
+  Status status = sema::verify(*tdb, logger, parsedObject.getTranslationUnit());
   if (!ok(status))
     return status;
 
-  return TypeCheckedObject(std::move(parsedObject));
+  return TypeCheckedObject(std::move(parsedObject), std::move(tdb));
 }
 } // namespace compiler
 } // namespace quick

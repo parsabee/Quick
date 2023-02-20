@@ -15,8 +15,16 @@
 
 #include "CodeGen/IRType.hpp"
 #include "Sema/QType.hpp"
+#include "Utils/Status.hpp"
 
 namespace quick {
+
+namespace compiler {
+class TypeCheckedObject;
+class ParsedObject;
+StatusOr<TypeCheckedObject> TypeCheck(ParsedObject parsedObject);
+}
+
 namespace sema {
 namespace type {
 
@@ -24,16 +32,13 @@ namespace type {
 /// QTypeDB - All Quick types are registered in this singleton
 /// ===-------------------------------------------------------------------=== //
 class QTypeDB : public std::unordered_map<std::string, std::unique_ptr<QType>> {
+  friend StatusOr<compiler::TypeCheckedObject>
+  compiler::TypeCheck(compiler::ParsedObject parsedObject);
   QTypeDB();
 
 public:
   QTypeDB &operator=(const QType &) = delete;
   QTypeDB(const QTypeDB &) = delete;
-
-  static QTypeDB &get() {
-    static QTypeDB db;
-    return db;
-  }
 
   /// Adds a new type to the data base
   QType *registerNewType(const std::string &name, QType *parent);
@@ -45,9 +50,7 @@ public:
   QType *getBoolType() const;
   QType *getStringType() const;
   QType *getNothingType() const;
-
   QType *getType(llvm::StringRef) const;
-
   std::unique_ptr<json::JSONNode> toJson();
 };
 

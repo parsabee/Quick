@@ -27,21 +27,22 @@ namespace quick::codegen {
 constexpr char MainFn[] = "main";
 
 /// ===-------------------------------------------------------------------=== //
-/// FnCodeGen - A statement visitor that generates code for every given 
+/// FnCodeGen - A statement visitor that generates code for every given
 /// function/method
 /// ===-------------------------------------------------------------------=== //
 class FnCodeGen : public ast::ASTVisitor<FnCodeGen, bool> {
 public:
   using Args = llvm::SmallVector<std::pair<llvm::StringRef, llvm::Value *>, 4>;
-  FnCodeGen(llvm::IRBuilder<> &builder, llvm::Module &module,
-            const ast::CompoundStmt &cmpStmt, type::LLVMTypeRegistry &tr,
-            LLVMEnv &llvmEnv, sema::type::QType *parentType = nullptr,
+  FnCodeGen(sema::type::QTypeDB &db, llvm::IRBuilder<> &builder,
+            llvm::Module &module, const ast::CompoundStmt &cmpStmt,
+            type::LLVMTypeRegistry &tr, LLVMEnv &llvmEnv,
+            sema::type::QType *parentType = nullptr,
             llvm::StringRef fnName = MainFn, type::IRType *returnType = nullptr,
             Args args = {})
       : fnName(fnName), module(module), builder(builder), tr(tr),
-        llvmEnv(llvmEnv), exprCG(module, builder, tr, env, llvmEnv),
-        fnBody(cmpStmt), tdb(sema::type::QTypeDB::get()), parentType(parentType),
-        retType(returnType), args(std::move(args)) {}
+        llvmEnv(llvmEnv), exprCG(db, module, builder, tr, env, llvmEnv),
+        fnBody(cmpStmt), tdb(db), parentType(parentType), retType(returnType),
+        args(std::move(args)) {}
 
   bool visitTranslationUnit(const ast::TranslationUnit &) = delete;
   bool visitExpression(const ast::Expression &) = delete;
@@ -53,13 +54,15 @@ public:
   auto &getExprCodeGen() { return exprCG; }
   bool isMain() { return fnName == MainFn; }
   Status generate();
-  static Status generate(llvm::IRBuilder<> &builder, llvm::Module &module,
-                         const ast::CompoundStmt &cmpStmt, type::LLVMTypeRegistry &tr,
-                         LLVMEnv &llvmEnv, sema::type::QType *parentType = nullptr,
-                         llvm::StringRef fnName = MainFn, type::IRType *returnType = nullptr,
-                         Args args = {});
+  static Status generate(sema::type::QTypeDB &tdb, llvm::IRBuilder<> &builder,
+                         llvm::Module &module, const ast::CompoundStmt &cmpStmt,
+                         type::LLVMTypeRegistry &tr, LLVMEnv &llvmEnv,
+                         sema::type::QType *parentType = nullptr,
+                         llvm::StringRef fnName = MainFn,
+                         type::IRType *returnType = nullptr, Args args = {});
 
 private:
+  Logger logger;
   llvm::StringRef fnName;
   llvm::Module &module;
   llvm::IRBuilder<> &builder;
@@ -71,19 +74,20 @@ private:
 
   const ast::CompoundStmt &fnBody;
   sema::type::QTypeDB &tdb;
-  sema::type::QType *parentType; // the type that the compound statement is in the
-                           // environment of
+  sema::type::QType *parentType; // the type that the compound statement is in
+                                 // the environment of
   sema::Env env;
 };
 
 llvm::Function *getOrCreateFnSym(const std::string &functionName,
-                           llvm::Module &module, llvm::Type *resultType,
-                           llvm::ArrayRef<llvm::Type *> params = {},
-                           bool isVarArgs = false);
+                                 llvm::Module &module, llvm::Type *resultType,
+                                 llvm::ArrayRef<llvm::Type *> params = {},
+                                 bool isVarArgs = false);
 
 llvm::Function *getOrCreateFnSym(const std::string &functionName,
-                           llvm::Module &module, llvm::FunctionType *FuncTy,
-                           bool isVarArgs = false);
+                                 llvm::Module &module,
+                                 llvm::FunctionType *FuncTy,
+                                 bool isVarArgs = false);
 
 } // namespace quick::codegen
 #endif // QUACK_FNCODEGEN_HPP

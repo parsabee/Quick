@@ -5,6 +5,7 @@ add_library(QuickCodeGen
 
     ${CMAKE_CURRENT_SOURCE_DIR}/ClassCodeGen.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/FnCodeGen.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ExprCodeGen.cpp
     )
 
 target_link_libraries(QuickCodeGen

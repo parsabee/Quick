@@ -12,9 +12,10 @@
 #ifndef QUICK_CLASSVERIFIER_HPP
 #define QUICK_CLASSVERIFIER_HPP
 
-#include "Env/Environment.hpp"
 #include "AST/ASTVisitor.hpp"
+#include "Env/Environment.hpp"
 #include "Sema/QTypeDB.hpp"
+#include "Utils/Logger.hpp"
 #include "Utils/Status.hpp"
 
 namespace quick::sema {
@@ -26,7 +27,7 @@ namespace quick::sema {
 class ClassVerifier : public ast::ASTVisitor<ClassVerifier, bool> {
   friend class SemaVerifier;
 
-  std::fstream &file;
+  SourceLogger &logger;
   const ast::Class &theClass;
   type::QTypeDB &tdb;
 
@@ -34,8 +35,8 @@ class ClassVerifier : public ast::ASTVisitor<ClassVerifier, bool> {
   bool verifyConstructor();
   bool hasRecursiveConstructor();
 
-  ClassVerifier(std::fstream &file, const ast::Class &theClass)
-      : file(file), theClass(theClass), tdb(type::QTypeDB::get()) {}
+  ClassVerifier(type::QTypeDB &db, SourceLogger &l, const ast::Class &c)
+      : logger(l), theClass(c), tdb(db) {}
 
 public:
   // only visits classes/methods
@@ -47,7 +48,8 @@ public:
 #define STMT_NODE_HANDLER(NODE) bool visit##NODE(const ast::NODE &) = delete;
 #include "AST/ASTNodes.def"
 
-  static Status verify(std::fstream &file, const ast::Class &theClass);
+  static Status verify(type::QTypeDB &db, SourceLogger &logger,
+                       const ast::Class &theClass);
 };
 
 } // namespace quick::sema

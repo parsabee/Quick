@@ -7,6 +7,7 @@
 
 #include "Sema/ClassVerifier.hpp"
 #include "Sema/StmtVerifier.hpp"
+#include "Utils/Logger.hpp"
 #include "Utils/Utils.hpp"
 
 namespace quick::sema {
@@ -58,8 +59,8 @@ bool ClassVerifier::isSuperInitialized(const std::string &superName) {
 
 bool ClassVerifier::verifyConstructor() {
   if (hasRecursiveConstructor()) {
-    logError(file, theClass.getConstructor().getLocation(),
-             "recursive type constructor detected");
+    logger.log(theClass.getConstructor(),
+               "recursive type constructor detected");
     return false;
   }
 
@@ -67,22 +68,19 @@ bool ClassVerifier::verifyConstructor() {
   if (auto superIdent = theClass.getSuper()) {
     auto &superName = superIdent->getName();
     if (type::isPrimitive(superName)) {
-      logError(file, superIdent->getLocation(),
-               "cannot inherit from a primitive type");
+      logger.log(*superIdent, "cannot inherit from a primitive type");
       return false;
     }
 
     auto *superType = tdb.getType(superName);
     if (!superType) {
-      logError(file, superIdent->getLocation(),
-               "type <" + superName + "> not found");
+      logger.log(*superIdent, "type <", superName, "> not found");
       return false;
     }
 
     if (superName != "Object") {
       if (!isSuperInitialized(superName)) {
-        logError(file, theClass.getConstructor().getLocation(),
-                 "super class not initialized");
+        logger.log(theClass.getConstructor(), "super class not initialized");
         return false;
       }
     }
@@ -97,19 +95,24 @@ bool ClassVerifier::visitMethod(const ast::Method &m) {
   auto qtype = tdb.getType(this->theClass.getClassIdent().getName());
   auto retType = tdb.getType(m.getReturnType().getName());
   if (!retType) {
-    logError(file, m.getReturnType().getLocation(), "return type not found");
+    //    logError(file, m.getReturnType().getLocation(), "return type not
+    //    found");
+    logger.log(m.getReturnType(), "return type not found");
     return false;
   }
   for (auto &p : m.getParams()) {
     auto pType = tdb.getType(p->getType().getName());
     if (!pType) {
-      logError(file, p->getLocation(),
-               "parameter type not found < " + p->getType().getName() + " >");
+      //      logError(file, p->getLocation(),
+      //               "parameter type not found < " + p->getType().getName() +
+      //               " >");
+      logger.log(*p, "parameter type not found < ", p->getType().getName(),
+                 " >");
       return false;
     }
     scope.insert({p->getVar().getName(), pType});
   }
-  if (StmtVerifier::verify(file, m.getBody(), env, qtype, retType,
+  if (StmtVerifier::verify(tdb, logger, m.getBody(), env, qtype, retType,
                            /*isConstructor*/ false, /*addANewScope*/ false,
                            /*addThisToScope*/ true) != Status::OK)
     return false;
@@ -128,8 +131,9 @@ bool ClassVerifier::visitClass(const ast::Class &clss) {
   return true;
 }
 
-Status ClassVerifier::verify(std::fstream &file, const ast::Class &theClass) {
-  ClassVerifier cv(file, theClass);
+Status ClassVerifier::verify(type::QTypeDB &db, SourceLogger &logger,
+                             const ast::Class &theClass) {
+  ClassVerifier cv(db, logger, theClass);
   return cv.visitClass(theClass) ? Status::OK : Status::ERROR;
 }
 

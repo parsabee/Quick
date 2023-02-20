@@ -19,14 +19,16 @@
 #include "CodeGen/IRType.hpp"
 #include "Env/Environment.hpp"
 #include "Sema/QTypeDB.hpp"
+#include "Utils/Logger.hpp"
 
 namespace quick::codegen {
 
 /// ===-------------------------------------------------------------------=== //
-/// ExprCodeGen - An expression visitor that generates code for a given 
+/// ExprCodeGen - An expression visitor that generates code for a given
 /// expression
 /// ===-------------------------------------------------------------------=== //
 class ExprCodeGen : public ast::ASTVisitor<ExprCodeGen, llvm::Value *> {
+  Logger logger;
   llvm::Module &module;
   llvm::IRBuilder<> &builder;
   llvm::LLVMContext &llvmCntx;
@@ -35,10 +37,11 @@ class ExprCodeGen : public ast::ASTVisitor<ExprCodeGen, llvm::Value *> {
   sema::type::QTypeDB &tdb;
 
 public:
-  ExprCodeGen(llvm::Module &module, llvm::IRBuilder<> &b,
-              type::LLVMTypeRegistry &tr, sema::Env &env, LLVMEnv &llvmEnv)
+  ExprCodeGen(sema::type::QTypeDB &tdb, llvm::Module &module,
+              llvm::IRBuilder<> &b, type::LLVMTypeRegistry &tr, sema::Env &env,
+              LLVMEnv &llvmEnv)
       : module(module), builder(b), llvmCntx(b.getContext()), typeRegistery(tr),
-        llvmEnv(llvmEnv), tdb(sema::type::QTypeDB::get()) {}
+        llvmEnv(llvmEnv), tdb(tdb) {}
   llvm::Value *visitTranslationUnit(const ast::TranslationUnit &) = delete;
   llvm::Value *visitStatement(const ast::Statement &) = delete;
 #define STMT_NODE_HANDLER(NODE)                                                \

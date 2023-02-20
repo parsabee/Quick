@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
   int status = 0;
   cl::ParseCommandLineOptions(argc, argv, "Quick Compiler\n");
 
-  auto parsed = EXIT_ON_ERROR(compiler::Parse(Filename));
+  auto parsed = EXIT_ON_ERROR(compiler::ParseFile(Filename));
   if (DumpAST) {
     ast::print(parsed.getTranslationUnit());
     std::exit(status);
@@ -40,15 +40,15 @@ int main(int argc, char **argv) {
 
   auto typechecked = EXIT_ON_ERROR(compiler::TypeCheck(std::move(parsed)));
 
-  auto codeGened = EXIT_ON_ERROR(compiler::CodeGen(std::move(typechecked)));
+  auto codegened = EXIT_ON_ERROR(compiler::CodeGen(std::move(typechecked)));
 
   if (EmitLLVMIR) {
-    std::unique_ptr<Module> module = codeGened.releaseModule();
+    std::unique_ptr<Module> module = codegened.releaseModule();
     module->print(llvm::outs(), nullptr);
     std::exit(status);
   }
 
   compiler::InitializeLLVMBackendTarget();
-  status = compiler::Jit(std::move(codeGened));
+  status = compiler::Jit(std::move(codegened));
   std::exit(status);
 }

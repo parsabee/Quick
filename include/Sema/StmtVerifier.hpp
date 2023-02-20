@@ -14,6 +14,7 @@
 
 #include "Env/Environment.hpp"
 #include "Sema/TypeChecker.hpp"
+#include "Utils/Logger.hpp"
 #include "Utils/Status.hpp"
 
 namespace quick::sema {
@@ -23,7 +24,7 @@ namespace quick::sema {
 /// their legality
 /// ===-------------------------------------------------------------------=== //
 class StmtVerifier : public ast::ASTVisitor<StmtVerifier, bool> {
-  std::fstream &file;
+  SourceLogger &logger;
   const ast::CompoundStmt &cmpStmt;
   Env &env;
   type::QTypeDB &tdb;
@@ -32,12 +33,13 @@ class StmtVerifier : public ast::ASTVisitor<StmtVerifier, bool> {
   type::QType *returnType;
   bool isConstructor; // If compound statement belongs to a constructor
   TypeChecker typeChecker;
-  StmtVerifier(std::fstream &file, const ast::CompoundStmt &cmpStmt, Env &env,
+  StmtVerifier(type::QTypeDB &db, SourceLogger &logger,
+               const ast::CompoundStmt &cmpStmt, Env &env,
                type::QType *parentType = nullptr,
                type::QType *returnType = nullptr, bool isConstructor = false)
-      : file(file), cmpStmt(cmpStmt), env(env), tdb(type::QTypeDB::get()),
+      : logger(logger), cmpStmt(cmpStmt), env(env), tdb(db),
         parentType(parentType), returnType(returnType),
-        isConstructor(isConstructor), typeChecker(file, tdb, env) {}
+        isConstructor(isConstructor), typeChecker(logger, tdb, env) {}
 
 public:
   // only visits statements
@@ -47,7 +49,7 @@ public:
 #include "AST/ASTNodes.def"
 
   /// returns OK if legal, ERROR otherwise
-  static Status verify(std::fstream &file, const ast::CompoundStmt &cmpStmt,
+  static Status verify(type::QTypeDB &db, SourceLogger &logger, const ast::CompoundStmt &cmpStmt,
                        Env &env, type::QType *parentType = nullptr,
                        type::QType *returnType = nullptr,
                        bool isConstructor = false, bool inANewScope = true,

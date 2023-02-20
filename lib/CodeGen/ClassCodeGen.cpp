@@ -70,8 +70,9 @@ bool ClassCodeGen::visitMethod(const Method &method) {
     scope.insert({arg.first, s});
   }
 
-  FnCodeGen methodCodeGen(builder, module, method.getBody(), tr, env, qType,
-                          method.getMethodIdent().getName(), retType, args);
+  FnCodeGen methodCodeGen(tdb, builder, module, method.getBody(), tr, env,
+                          qType, method.getMethodIdent().getName(), retType,
+                          args);
   if (!methodCodeGen.visitCompoundStmt(method.getBody()))
     return false;
 
@@ -159,8 +160,8 @@ bool ClassCodeGen::generateInitFunction(llvm::Function *initFn,
     builder.CreateStore(arg.second, s);
     scope.insert({arg.first, s});
   }
-  FnCodeGen constructorCodeGen(builder, module, constructor.getBody(), tr, env,
-                               qType, typeName + "_init", irType, args);
+  FnCodeGen constructorCodeGen(tdb, builder, module, constructor.getBody(), tr,
+                               env, qType, typeName + "_init", irType, args);
 
   for (auto &stmt : constructor.getBody()) {
     // checking if it's a super type initializer
@@ -241,10 +242,11 @@ Table<Type *> ClassCodeGen::generateMemberTable() {
   return memberTable;
 }
 
-ClassCodeGen::ClassCodeGen(const Class &theClass, llvm::Module &module,
-                           llvm::IRBuilder<> &builder, LLVMTypeRegistry &tr)
-    : theClass(theClass), module(module), builder(builder), tr(tr),
-      tdb(QTypeDB::get()), typeName(theClass.getClassIdent().getName()) {
+ClassCodeGen::ClassCodeGen(sema::type::QTypeDB &tdb, const Class &theClass,
+                           llvm::Module &module, llvm::IRBuilder<> &builder,
+                           LLVMTypeRegistry &tr)
+    : theClass(theClass), module(module), builder(builder), tr(tr), tdb(tdb),
+      typeName(theClass.getClassIdent().getName()) {
   qType = tdb.getType(typeName);
   assert(qType);
   if (theClass.getSuper()) {
@@ -260,11 +262,12 @@ ClassCodeGen::ClassCodeGen(const Class &theClass, llvm::Module &module,
   }
 }
 
-Status ClassCodeGen::generate(const ast::Class &theClass, llvm::Module &module,
+Status ClassCodeGen::generate(sema::type::QTypeDB &tdb,
+                              const ast::Class &theClass, llvm::Module &module,
                               llvm::IRBuilder<> &builder,
                               type::LLVMTypeRegistry &tr) {
 
-  ClassCodeGen ccg(theClass, module, builder, tr);
+  ClassCodeGen ccg(tdb, theClass, module, builder, tr);
   auto &constructor = theClass.getConstructor();
 
   std::string constructorName = ccg.typeName + "_create";
@@ -346,7 +349,7 @@ Status ClassCodeGen::generate(const ast::Class &theClass, llvm::Module &module,
 
   // Creating the create function
   ccg.generateCreateFunction(createFn, initFn, irType->getStructType(), vtable,
-                         globalVtable, irType->getMethodTable());
+                             globalVtable, irType->getMethodTable());
   ccg.generateGetVtableFunction(globalVtable);
 
   return ccg.visitClass(theClass) ? Status::OK : Status::ERROR;

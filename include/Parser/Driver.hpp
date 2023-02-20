@@ -50,16 +50,17 @@ class Driver {
   /// Handling the scanner.
   void _scanBegin();
   void _scanEnd();
+  int parse();
 
 public:
   explicit Driver(bool traceParsing = false, bool traceScanning = false)
       : _traceParsing(traceParsing), _traceScanning(traceScanning) {}
 
-  int parse(const std::string &filename);
-
+  int parseFile(const std::string &filename);
   void setRoot(std::unique_ptr<TranslationUnit> root) {
     _root = std::move(root);
   }
+
   TranslationUnit &getRoot() { return *_root; }
   std::unique_ptr<TranslationUnit> releaseRoot() { return std::move(_root); }
 

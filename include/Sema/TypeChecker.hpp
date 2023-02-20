@@ -16,6 +16,7 @@
 #include "AST/ASTVisitor.hpp"
 #include "Env/Environment.hpp"
 #include "Sema/QTypeDB.hpp"
+#include "Utils/Logger.hpp"
 
 namespace quick::sema {
 
@@ -24,20 +25,20 @@ namespace quick::sema {
 /// expression.
 /// ===-------------------------------------------------------------------=== //
 class TypeChecker : public ast::ASTVisitor<TypeChecker, type::QType *> {
-  std::fstream &file;
+  SourceLogger &logger;
   type::QTypeDB &tdb;
   const Env &env;
 
 public:
-  TypeChecker(std::fstream &file, type::QTypeDB &tdb, Env &env)
-      : file(file), tdb(tdb), env(env) {}
+  TypeChecker(SourceLogger &logger, type::QTypeDB &tdb, Env &env)
+      : logger(logger), tdb(tdb), env(env) {}
   type::QType *visitStatement(const ast::Statement &) = delete;
   type::QType *visitTranslationUnit(const ast::TranslationUnit &) = delete;
-#define STMT_NODE_HANDLER(NODE) type::QType *visit##NODE(const ast::NODE &) = delete;
+#define STMT_NODE_HANDLER(NODE)                                                \
+  type::QType *visit##NODE(const ast::NODE &) = delete;
 #define EXPR_NODE_HANDLER(NODE) type::QType *visit##NODE(const ast::NODE &);
 #include "AST/ASTNodes.def"
 };
-
 
 } // namespace quick::sema
 

@@ -10,6 +10,7 @@ file(MAKE_DIRECTORY ${QUICK_BIN_DIR}/test)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${QUICK_BIN_DIR}/test)
 
 # Compiling tests
+add_subdirectory(Sema)
 add_subdirectory(AST)
 
 # Resetting bin directory
