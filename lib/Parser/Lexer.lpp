@@ -22,6 +22,7 @@
 %}
 
 string_lit  \"(\\.|[^"\\])*\"
+mov         mov
 class       class
 fn          fn
 extends     extends
@@ -83,6 +84,7 @@ comment     \/\/[^\n]*
 ","        return yy::parser::make_COMMA (loc);
 "!"        return yy::parser::make_NOT(loc);
 "->"       return yy::parser::make_ARROW(loc);
+{mov}      return yy::parser::make_MOVE (yytext, loc);
 {int}      return make_INT (yytext, loc);
 {float}    return make_FLOAT (yytext, loc);
 {extends}  return yy::parser::make_EXTENDS(yytext, loc);

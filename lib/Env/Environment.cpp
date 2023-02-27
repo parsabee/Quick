@@ -7,8 +7,8 @@
 
 #include "Env/Environment.hpp"
 
-namespace quick::sema {
-
+namespace quick {
+namespace sema {
 Scope And(const Scope &first, const Scope &other) {
   Scope s;
   for (const auto &[k, t1] : first) {
@@ -23,5 +23,5 @@ Scope And(const Scope &first, const Scope &other) {
   }
   return s;
 }
-
-} // namespace quick::sema
+} // namespace sema
+} // namespace quick

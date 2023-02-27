@@ -59,8 +59,8 @@ bool ClassVerifier::isSuperInitialized(const std::string &superName) {
 
 bool ClassVerifier::verifyConstructor() {
   if (hasRecursiveConstructor()) {
-    logger.log(theClass.getConstructor(),
-               "recursive type constructor detected");
+    logger.log_node(theClass.getConstructor(),
+                    "recursive type constructor detected");
     return false;
   }
 
@@ -68,19 +68,20 @@ bool ClassVerifier::verifyConstructor() {
   if (auto superIdent = theClass.getSuper()) {
     auto &superName = superIdent->getName();
     if (type::isPrimitive(superName)) {
-      logger.log(*superIdent, "cannot inherit from a primitive type");
+      logger.log_node(*superIdent, "cannot inherit from a primitive type");
       return false;
     }
 
     auto *superType = tdb.getType(superName);
     if (!superType) {
-      logger.log(*superIdent, "type <", superName, "> not found");
+      logger.log_node(*superIdent, "type <", superName, "> not found");
       return false;
     }
 
     if (superName != "Object") {
       if (!isSuperInitialized(superName)) {
-        logger.log(theClass.getConstructor(), "super class not initialized");
+        logger.log_node(theClass.getConstructor(),
+                        "super class not initialized");
         return false;
       }
     }
@@ -97,7 +98,7 @@ bool ClassVerifier::visitMethod(const ast::Method &m) {
   if (!retType) {
     //    logError(file, m.getReturnType().getLocation(), "return type not
     //    found");
-    logger.log(m.getReturnType(), "return type not found");
+    logger.log_node(m.getReturnType(), "return type not found");
     return false;
   }
   for (auto &p : m.getParams()) {
@@ -106,8 +107,8 @@ bool ClassVerifier::visitMethod(const ast::Method &m) {
       //      logError(file, p->getLocation(),
       //               "parameter type not found < " + p->getType().getName() +
       //               " >");
-      logger.log(*p, "parameter type not found < ", p->getType().getName(),
-                 " >");
+      logger.log_node(*p, "parameter type not found < ", p->getType().getName(),
+                      " >");
       return false;
     }
     scope.insert({p->getVar().getName(), pType});

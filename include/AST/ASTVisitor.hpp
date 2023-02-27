@@ -140,7 +140,6 @@ public:
     }
   }
 }; // ASTVisitor
-
 } // namespace quick::ast
 
 #endif // QUACK_ASTVISITOR_HPP

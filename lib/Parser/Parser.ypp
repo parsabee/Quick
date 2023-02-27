@@ -84,6 +84,7 @@
 %token <std::string> PRINT
 %token <std::string> TYPECASE
 %token <std::string> CASE
+%token <std::string> MOVE
 
 %type <ptr<TranslationUnit>> translationUnit
 %type <ptr<Statement>> statement
@@ -108,6 +109,7 @@
 %type <ptr<Expression>> callExpression
 %type <ptr<Expression>> expression
 %type <ptr<Expression>> relationalExpression
+%type <ptr<Expression>> dataflowExpression
 %type <ptr<LValue>> lvalueExpression
 %type <UnaryOperator::Operator> unaryOperator
 %type <ptr<Arguments>> args
@@ -353,7 +355,14 @@ relationalExpression:
                                                                                              std::move($3)); }
     ;
 
-expression: relationalExpression    { $$ = std::move($1); }
+dataflowExpression:
+      relationalExpression          { $$ = std::move($1); }
+    | MOVE relationalExpression     { $$ = std::make_unique<DataFlowExpression>(loc(@1, @2),
+                                                                                DataFlowExpression::Kind::Move,
+                                                                                std::move($2)); }
+    ;
+
+expression: dataflowExpression      { $$ = std::move($1); }
     | "(" expression ")"            { $$ = std::move($2); }
     ;
 

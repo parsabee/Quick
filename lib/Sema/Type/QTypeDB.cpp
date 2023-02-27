@@ -7,6 +7,7 @@
 
 #include "Sema/QTypeDB.hpp"
 #include "Sema/QType.hpp"
+#include "Utils/Utils.hpp"
 
 using namespace json;
 
@@ -130,17 +131,27 @@ QTypeDB::QTypeDB() {
   buildStringType(*this);
 }
 
-QType *QTypeDB::getObjectType() const { return this->at(ObjectStr).get(); }
+QType *QTypeDB::getObjectType() const {
+  return ASSERT(this->at(ObjectStr).get());
+}
 
-QType *QTypeDB::getIntegerType() const { return this->at(IntegerStr).get(); }
+QType *QTypeDB::getIntegerType() const {
+  return ASSERT(this->at(IntegerStr).get());
+}
 
-QType *QTypeDB::getFloatType() const { return this->at(FloatStr).get(); }
+QType *QTypeDB::getFloatType() const {
+  return ASSERT(this->at(FloatStr).get());
+}
 
-QType *QTypeDB::getBoolType() const { return this->at(BoolStr).get(); }
+QType *QTypeDB::getBoolType() const { return ASSERT(this->at(BoolStr).get()); }
 
-QType *QTypeDB::getStringType() const { return this->at(StringStr).get(); }
+QType *QTypeDB::getStringType() const {
+  return ASSERT(this->at(StringStr).get());
+}
 
-QType *QTypeDB::getNothingType() const { return this->at(NothingStr).get(); }
+QType *QTypeDB::getNothingType() const {
+  return ASSERT(this->at(NothingStr).get());
+}
 
 QType *QTypeDB::registerNewType(const std::string &name, QType *parent) {
   assert(this->find(name) == this->end() && "Type is already registered");

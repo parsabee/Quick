@@ -12,20 +12,27 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/IRBuilder.h"
 
-namespace quick::codegen {
+namespace quick {
 
 using namespace ast;
 using namespace llvm;
 using namespace codegen::type;
 using namespace sema::type;
 
-llvm::Value *
-visitIntOrFloat(llvm::IRBuilder<> &builder, llvm::Type *type,
-                llvm::Value *literal); // Defined in ExprCodeGen.cpp
+/// Specializing the destructor of LLVMEnv aka LocalEnvironment<llvm::Value *>
+/// It will call the destructor of the objects aka llvm::Value *
+template <> LocalEnvironment<Value *>::~LocalEnvironment() {
 
-Function *getOrCreateFnSym(const std::string &functionName,
-                           llvm::Module &module, llvm::Type *resultType,
-                           llvm::ArrayRef<Type *> params, bool isVarArgs) {
+}
+
+namespace codegen {
+
+Value *visitIntOrFloat(IRBuilder<> &builder, Type *type,
+                       Value *literal); // Defined in ExprCodeGen.cpp
+
+Function *getOrCreateFnSym(const std::string &functionName, Module &module,
+                           Type *resultType, ArrayRef<Type *> params,
+                           bool isVarArgs) {
   Function *func = module.getFunction(functionName);
   if (!func) {
     FunctionType *FuncTy = FunctionType::get(resultType, params, isVarArgs);
@@ -36,9 +43,8 @@ Function *getOrCreateFnSym(const std::string &functionName,
   return func;
 }
 
-Function *getOrCreateFnSym(const std::string &functionName,
-                           llvm::Module &module, FunctionType *FuncTy,
-                           bool isVarArgs) {
+Function *getOrCreateFnSym(const std::string &functionName, Module &module,
+                           FunctionType *FuncTy, bool isVarArgs) {
   Function *func = module.getFunction(functionName);
   if (!func) {
     func = Function::Create(FuncTy, GlobalValue::ExternalLinkage, functionName,
@@ -102,27 +108,27 @@ bool FnCodeGen::visitIf(const If &ifStmt) {
   // Creating branching basic blocks
   auto &cntx = builder.getContext();
   auto fn = builder.GetInsertBlock()->getParent();
-  llvm::BasicBlock *thenBB = llvm::BasicBlock::Create(cntx, "if.then", fn);
-  llvm::BasicBlock *mergeBB = llvm::BasicBlock::Create(cntx, "if.cont");
-  llvm::BasicBlock *elseBB = mergeBB;
+  BasicBlock *thenBB = BasicBlock::Create(cntx, "if.then", fn);
+  BasicBlock *mergeBB = BasicBlock::Create(cntx, "if.cont");
+  BasicBlock *elseBB = mergeBB;
   if (ifStmt.hasElse())
-    elseBB = llvm::BasicBlock::Create(cntx, "if.else");
+    elseBB = BasicBlock::Create(cntx, "if.else");
 
   // Emitting IR for if condition
   auto condExpr = exprCG.visitExpression(ifStmt.getCond());
   auto cmp = condExpr;
   // if condition didn't produce a cmp instruction, make one
-  if (!llvm::isa<llvm::CmpInst>(condExpr))
+  if (!isa<CmpInst>(condExpr))
     cmp = createCmpInst(builder, condExpr);
 
   builder.CreateCondBr(cmp, thenBB, elseBB);
 
   /// Emits code for compound stmt, and returns the environment of the generated
   /// block
-  auto emitBody = [&](const CompoundStmt &body) -> llvm::Optional<LLVMScope> {
+  auto emitBody = [&](const CompoundStmt &body) -> Optional<LLVMScope> {
     (void)llvmEnv.addNewScope();
     if (!visitCompoundStmt(body))
-      return llvm::None;
+      return None;
     if (!body.hasReturn())
       builder.CreateBr(mergeBB);
     else // Erase potentially empty block
@@ -155,6 +161,7 @@ bool FnCodeGen::visitIf(const If &ifStmt) {
 
     /// Merges the variables defined in both paths with a phi node
     auto mergePaths = [&]() {
+      SmallVector<StringRef, 4> merged;
       for (auto &pair : ThenEnv) {
         auto &var = pair.getFirst();
         if (!ElseEnv.lookup(var))
@@ -180,9 +187,9 @@ bool FnCodeGen::visitIf(const If &ifStmt) {
           continue;
 
         auto lcaLLVMType = tr.get(lca)->getType();
-        auto lcaPtr = llvm::PointerType::get(lcaLLVMType, 0);
+        auto lcaPtr = PointerType::get(lcaLLVMType, 0);
 
-        auto phi = builder.CreatePHI(llvm::PointerType::get(lcaLLVMType, 0), 2);
+        auto phi = builder.CreatePHI(PointerType::get(lcaLLVMType, 0), 2);
         auto thenVar = ThenEnv.lookup(var);
         auto elseVar = ElseEnv.lookup(var);
         if (lcaPtr != thenVar->getType()) {
@@ -200,10 +207,18 @@ bool FnCodeGen::visitIf(const If &ifStmt) {
         phi->addIncoming(elseVar, &lastElseBB);
         phi->addIncoming(thenVar, &lastThenBB);
         llvmEnv.back().insert({var, phi});
+        merged.push_back(var);
       }
+      return merged;
     };
 
-    mergePaths();
+    auto merged = mergePaths();
+    // `var` no longer belongs to then or else environments, removing them from
+    // there
+    for (auto &var : merged) {
+      ThenEnv.erase(var);
+      ElseEnv.erase(var);
+    }
     return true;
   }
 
@@ -233,9 +248,9 @@ bool FnCodeGen::visitIf(const If &ifStmt) {
 bool FnCodeGen::visitWhile(const While &whileStmt) {
   auto &cntx = builder.getContext();
   auto fn = builder.GetInsertBlock()->getParent();
-  llvm::BasicBlock *predBB = llvm::BasicBlock::Create(cntx, "while.pred", fn);
-  llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(cntx, "while.loop", fn);
-  llvm::BasicBlock *contBB = llvm::BasicBlock::Create(cntx, "while.cont", fn);
+  BasicBlock *predBB = BasicBlock::Create(cntx, "while.pred", fn);
+  BasicBlock *loopBB = BasicBlock::Create(cntx, "while.loop", fn);
+  BasicBlock *contBB = BasicBlock::Create(cntx, "while.cont", fn);
   builder.CreateBr(predBB);
 
   // Emitting code for the predicate block of the while loop
@@ -243,7 +258,7 @@ bool FnCodeGen::visitWhile(const While &whileStmt) {
   auto condExpr = exprCG.visitExpression(whileStmt.getCond());
   auto cmp = condExpr;
   // if condition didn't produce a cmp instruction, make one
-  if (!llvm::isa<llvm::CmpInst>(condExpr))
+  if (!isa<CmpInst>(condExpr))
     cmp = createCmpInst(builder, condExpr);
 
   builder.CreateCondBr(cmp, loopBB, contBB);
@@ -338,7 +353,7 @@ bool FnCodeGen::visitValueStmt(const ast::ValueStmt &valueStmt) {
 }
 
 bool FnCodeGen::visitReturn(const ast::Return &returnStmt) {
-  llvm::Value *lval;
+  Value *lval;
   if (auto *expr = returnStmt.getRetVal()) {
     lval = exprCG.visitExpression(*expr);
   } else {
@@ -362,7 +377,7 @@ bool FnCodeGen::visitPrintStatement(const ast::PrintStatement &print) {
 
   // Creating the format string, and generating code for expressions
   std::string format;
-  llvm::raw_string_ostream ss(format);
+  raw_string_ostream ss(format);
   SmallVector<Value *, 4> params;
   for (auto &expr : *print.getArgs()) {
     auto exprVal = exprCG.visitExpression(*expr);
@@ -381,10 +396,9 @@ bool FnCodeGen::visitPrintStatement(const ast::PrintStatement &print) {
       if (t->getName() != "String")
         string = t->dispatch(builder, "__str__", exprVal, {});
 
-      Function *getStringData =
-          getOrCreateFnSym("String_getData", module,
-                           llvm::Type::getInt8PtrTy(module.getContext()),
-                           {string->getType()}, false);
+      Function *getStringData = getOrCreateFnSym(
+          "String_getData", module, Type::getInt8PtrTy(module.getContext()),
+          {string->getType()}, false);
       // getting the data of a string object
       auto str = builder.CreateCall(getStringData, {string});
       params.push_back(str);
@@ -413,11 +427,11 @@ Status FnCodeGen::generate() {
 
   // Creating the function
   auto &cntx = builder.getContext();
-  auto fnType = llvm::FunctionType::get(builder.getInt64Ty(), {});
-  auto fn = llvm::Function::Create(fnType, llvm::GlobalValue::ExternalLinkage,
-                                   fnName, module);
+  auto fnType = FunctionType::get(builder.getInt64Ty(), {});
+  auto fn =
+      Function::Create(fnType, GlobalValue::ExternalLinkage, fnName, module);
   fn->setDSOLocal(true);
-  auto *bb = llvm::BasicBlock::Create(cntx, fnName, fn);
+  auto *bb = BasicBlock::Create(cntx, fnName, fn);
   builder.SetInsertPoint(bb);
 
   auto &scope = llvmEnv.addNewScope();
@@ -442,19 +456,17 @@ Status FnCodeGen::generate() {
   return Status::OK;
 }
 
-Status FnCodeGen::generate(sema::type::QTypeDB &tdb, llvm::IRBuilder<> &builder,
-                           llvm::Module &module,
-                           const ast::CompoundStmt &cmpStmt,
+Status FnCodeGen::generate(sema::type::QTypeDB &tdb, IRBuilder<> &builder,
+                           Module &module, const ast::CompoundStmt &cmpStmt,
                            type::LLVMTypeRegistry &tr, LLVMEnv &llvmEnv,
-                           sema::type::QType *parentType,
-                           llvm::StringRef fnName, type::IRType *returnType,
-                           Args args) {
+                           sema::type::QType *parentType, StringRef fnName,
+                           type::IRType *returnType, Args args) {
   FnCodeGen fncg(tdb, builder, module, cmpStmt, tr, llvmEnv, parentType, fnName,
                  returnType, std::move(args));
   return fncg.generate();
 }
 
-static llvm::Value *loadVTable(IRBuilder<> &builder, llvm::Value *obj) {
+static Value *loadVTable(IRBuilder<> &builder, Value *obj) {
   auto vtable = builder.CreateStructGEP(obj, 0);
   return builder.CreateLoad(vtable);
 }
@@ -470,8 +482,8 @@ bool FnCodeGen::visitTypeSwitch(const ast::TypeSwitch &typeSwitch) {
     loadedVtable = builder.CreateBitCast(loadedVtable, vtablePtr);
 
   Function *fn = builder.GetInsertBlock()->getParent();
-  llvm::BasicBlock *elseBB, *mergeBB;
-  mergeBB = llvm::BasicBlock::Create(module.getContext(), "typecase.cont");
+  BasicBlock *elseBB, *mergeBB;
+  mergeBB = BasicBlock::Create(module.getContext(), "typecase.cont");
 
   for (auto &c : typeSwitch.getCases()) {
     auto &caseType = c->getVarDecl().getType().getName();
@@ -481,18 +493,17 @@ bool FnCodeGen::visitTypeSwitch(const ast::TypeSwitch &typeSwitch) {
     assert(caseVTableType &&
            "must have a vtable by this point, primitives should "
            "have been typechecked -- bug");
-    auto caseVtableGetter =
-        getOrCreateFnSym(caseType + "_get_vtable", module,
-                         llvm::PointerType::get(caseVTableType, 0));
+    auto caseVtableGetter = getOrCreateFnSym(
+        caseType + "_get_vtable", module, PointerType::get(caseVTableType, 0));
     Value *caseVTable = builder.CreateCall(caseVtableGetter);
     if (caseVTable->getType() != vtableType)
       caseVTable = builder.CreateBitCast(caseVTable, vtablePtr);
 
     Value *res = builder.CreateCall(is_subtype, {caseVTable, loadedVtable});
-    llvm::BasicBlock *thenBB = llvm::BasicBlock::Create(
-        module.getContext(), "typecase.if." + caseType, fn);
-    elseBB = llvm::BasicBlock::Create(module.getContext(),
-                                      "typecase.not." + caseType);
+    BasicBlock *thenBB =
+        BasicBlock::Create(module.getContext(), "typecase.if." + caseType, fn);
+    elseBB =
+        BasicBlock::Create(module.getContext(), "typecase.not." + caseType);
     res = builder.CreateICmpNE(
         res, ConstantInt::get(Type::getInt8Ty(builder.getContext()), 0, true));
     builder.CreateCondBr(res, thenBB, elseBB);
@@ -525,5 +536,5 @@ bool FnCodeGen::visitTypeSwitch(const ast::TypeSwitch &typeSwitch) {
 bool FnCodeGen::visitTypeSwitchCase(const ast::TypeSwitchCase &) {
   return false;
 }
-
-} // namespace quick::codegen
+} // namespace codegen
+} // namespace quick

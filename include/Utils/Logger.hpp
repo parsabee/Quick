@@ -44,7 +44,7 @@ public:
                         llvm::raw_ostream &o = llvm::errs())
       : Logger(o), source(s) {}
 
-  template <typename... Args> void log(const ast::ASTNode &node, Args... args) {
+  template <typename... Args> void log_node(const ast::ASTNode &node, Args... args) {
     prefix();
     out << " @ " << node.getLocation().toString() << " : ";
     Logger::log(args...);

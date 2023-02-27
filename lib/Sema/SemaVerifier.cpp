@@ -9,21 +9,22 @@
 #include "Compiler/Pipeline.hpp"
 #include "Sema/ClassVerifier.hpp"
 #include "Sema/StmtVerifier.hpp"
+#include "Utils/Utils.hpp"
 
 namespace quick {
 namespace sema {
 
 using namespace ast;
 
+/// Registering all classes
 static int registerClasses(SourceLogger &logger, type::QTypeDB &tdb,
                            const Classes &clsses) {
   int numErrors = 0;
-  // Registering all classes
   for (auto &clss : clsses) {
     auto &className = clss->getClassIdent().getName();
     if (tdb.getType(className)) {
-      logger.log(clss->getClassIdent(), "redefinition of class <", className,
-                 ">");
+      logger.log_node(clss->getClassIdent(), "redefinition of class <",
+                      className, ">");
       numErrors++;
     } else {
       tdb.registerNewType(className, nullptr);
@@ -32,12 +33,12 @@ static int registerClasses(SourceLogger &logger, type::QTypeDB &tdb,
   return numErrors;
 }
 
+/// Verifies member variables(constructor) of the classes
 static int processMembers(SourceLogger &logger, type::QTypeDB &tdb,
                           const Classes &clsses) {
   int numErrors = 0;
   for (auto &clss : clsses) {
-    auto type = tdb.getType(clss->getClassIdent().getName());
-    assert(type);
+    auto type = ASSERT(tdb.getType(clss->getClassIdent().getName()));
     sema::Env env;
     auto &scope = env.addNewScope();
     for (auto &params : clss->getConstructor().getParams()) {
@@ -56,45 +57,47 @@ static int processMembers(SourceLogger &logger, type::QTypeDB &tdb,
   return numErrors;
 }
 
+/// Registers the super types for each type
 static int processSuperTypes(SourceLogger &logger, type::QTypeDB &tdb,
                              const Classes &clsses) {
   int numErrors = 0;
   for (auto &clss : clsses) {
-    auto super = clss->getSuper();
+    auto *super = clss->getSuper();
     auto &className = clss->getClassIdent().getName();
-    type::QType *superType = nullptr;
+    type::QType *superType;
     if (super) {
       auto &superName = super->getName();
       superType = tdb.getType(superName);
       if (!superType) {
         numErrors++;
-        logger.log(*clss->getSuper(), "type not found <" + superName + ">");
+        logger.log_node(*clss->getSuper(),
+                        "type not found <" + superName + ">");
       }
     } else {
-      superType = tdb.getType("Object");
+      superType = tdb.getObjectType();
     }
 
     if (superType) {
-      auto type = tdb.getType(className);
+      auto type = ASSERT(tdb.getType(className));
       type->setParent(superType);
     }
   }
   return numErrors;
 }
 
+/// Verifies the method signatures of every class and registers them
 static int processMethods(SourceLogger &logger, type::QTypeDB &tdb,
                           const Classes &clsses) {
   int numErrors = 0;
   for (auto &clss : clsses) {
     type::QType *super = nullptr;
     if (auto superIdent = clss->getSuper()) {
-      super = tdb.getType(superIdent->getName());
-      assert(super);
+      super = ASSERT(tdb.getType(superIdent->getName()));
     }
+
     if (!super)
       super = tdb.getObjectType();
 
-    assert(super);
     auto &className = clss->getClassIdent().getName();
     auto type = tdb.getType(className);
     auto process = [&](const Method *m) -> bool {
@@ -103,12 +106,10 @@ static int processMethods(SourceLogger &logger, type::QTypeDB &tdb,
       auto methodName = m->getMethodIdent().getName();
       auto tmp = super;
       type::QMethod *override = nullptr;
-      int overrideIdx = -1;
       while (tmp) {
         if (tmp->getMethods().count(methodName)) {
           auto &p = tmp->getMethods()[methodName];
           override = p.second.get();
-          overrideIdx = p.first;
           break;
         }
         tmp = tmp->getParent();
@@ -117,7 +118,7 @@ static int processMethods(SourceLogger &logger, type::QTypeDB &tdb,
       if (override) {
         if (m->getParams().size() != override->getFormals().size()) {
           numErrors++;
-          logger.log(
+          logger.log_node(
               *m,
               "overriding method with wrong number of parameters. Expected ",
               std::to_string(override->getFormals().size()),
@@ -129,8 +130,8 @@ static int processMethods(SourceLogger &logger, type::QTypeDB &tdb,
           auto &mParam = std::get<0>(pair);
           auto &formal = std::get<1>(pair);
           if (mParam->getType().getName() != formal.type->getName()) {
-            logger.log(*mParam, "expected type <", formal.type->getName(),
-                       "> but got <", mParam->getType().getName(), ">");
+            logger.log_node(*mParam, "expected type <", formal.type->getName(),
+                            "> but got <", mParam->getType().getName(), ">");
             numErrors++;
             return false;
           }
@@ -141,8 +142,8 @@ static int processMethods(SourceLogger &logger, type::QTypeDB &tdb,
         auto pType = tdb.getType(p->getType().getName());
         if (!pType) {
           numErrors++;
-          logger.log(*p, "parameter type <", p->getType().getName(),
-                     "> does not exist.");
+          logger.log_node(*p, "parameter type <", p->getType().getName(),
+                          "> does not exist.");
           status = false;
         } else {
           formals.push_back({pType, p->getVar().getName()});
@@ -151,7 +152,7 @@ static int processMethods(SourceLogger &logger, type::QTypeDB &tdb,
 
       auto retType = tdb.getType(m->getReturnType().getName());
       if (!retType) {
-        logger.log(m->getReturnType(), "return does not exist");
+        logger.log_node(m->getReturnType(), "return does not exist");
         status = false;
         numErrors++;
       }
@@ -170,6 +171,7 @@ static int processMethods(SourceLogger &logger, type::QTypeDB &tdb,
   return numErrors;
 }
 
+/// Checks circular inheritance
 static bool hasCircularInheritance(const Class &clss, type::QTypeDB &tdb) {
   auto *superIdent = clss.getSuper();
   if (!superIdent)
@@ -186,9 +188,8 @@ static bool hasCircularInheritance(const Class &clss, type::QTypeDB &tdb) {
   return false;
 }
 
-Status verify(type::QTypeDB &tdb, SourceLogger &logger,
-              const ast::TranslationUnit &tu) {
-  Env environment;
+Status verifyAndRegisterTypesAndMethodSignatures(
+    type::QTypeDB &tdb, SourceLogger &logger, const ast::TranslationUnit &tu) {
   int numErrors = 0;
   numErrors += registerClasses(logger, tdb, tu.getClasses());
   numErrors += processSuperTypes(logger, tdb, tu.getClasses());
@@ -196,33 +197,56 @@ Status verify(type::QTypeDB &tdb, SourceLogger &logger,
   numErrors += processMembers(logger, tdb, tu.getClasses());
   for (auto &clss : tu.getClasses()) {
     if (hasCircularInheritance(*clss, tdb)) {
-      logger.log(clss->getClassIdent(), "circular inheritance detected");
-      return Status::ERROR;
+      logger.log_node(clss->getClassIdent(), "circular inheritance detected");
+      numErrors++;
     }
   }
-
   if (numErrors) {
-    std::cerr << "total errors: " << numErrors << "\n";
-    return Status::ERROR;
+    logger.log("total errors: ", numErrors, "\n");
+    return Status::TYPECHECK_ERROR;
   }
+  return Status::OK;
+}
+
+Status verifyMethodDefinitions(type::QTypeDB &tdb, SourceLogger &logger,
+                             const ast::TranslationUnit &tu) {
+  int numErrors = 0;
 
   // Checking classes
   for (auto &clss : tu.getClasses()) {
     if (ClassVerifier::verify(tdb, logger, *clss) != Status::OK)
       numErrors++;
   }
+  if (numErrors) {
+    logger.log("total errors: ", numErrors);
+    return Status::TYPECHECK_ERROR;
+  }
+  return Status::OK;
+}
 
+Status verifyMain(type::QTypeDB &tdb, SourceLogger &logger,
+                  const ast::TranslationUnit &tu) {
+  int numErrors = 0;
+  Env environment;
   // Checking main
   if (StmtVerifier::verify(tdb, logger, tu.getCompoundStmt(), environment,
                            /*parentType*/ nullptr,
-                           /*returnType*/ tdb.getIntegerType()) != Status::OK)
+                           /*returnType*/ tdb.getIntegerType()) != Status::OK) {
     numErrors++;
+  }
+  if (numErrors) {
+    logger.log("total errors: ", numErrors);
+    return Status::TYPECHECK_ERROR;
+  }
+  return Status::OK;
+}
 
-  if (!numErrors)
-    return Status::OK;
-
-  std::cerr << "total errors: " << numErrors << "\n";
-  return Status::ERROR;
+Status verify(type::QTypeDB &tdb, SourceLogger &logger,
+              const ast::TranslationUnit &tu) {
+  RETURN_ON_ERROR(verifyAndRegisterTypesAndMethodSignatures(tdb, logger, tu));
+  RETURN_ON_ERROR(verifyMethodDefinitions(tdb, logger, tu));
+  RETURN_ON_ERROR(verifyMain(tdb, logger, tu));
+  return Status::OK;
 }
 
 } // namespace sema

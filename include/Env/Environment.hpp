@@ -28,14 +28,30 @@ public:
   LocalEnvironment &operator=(const LocalEnvironment &) = default;
   LocalEnvironment(LocalEnvironment &&) = default;
   LocalEnvironment &operator=(LocalEnvironment &&) = default;
-  void dump() {
-    llvm::errs() << "{";
-    for (auto &[p, t] : *this) {
-      llvm::errs() << p << " ";
-    }
-    llvm::errs() << "}\n";
-  }
+  ~LocalEnvironment();
+  void moveVariableTo(llvm::StringRef, LocalEnvironment<T> &);
+  void dump();
 };
+
+template <typename T>
+void LocalEnvironment<T>::moveVariableTo(llvm::StringRef name,
+                                         LocalEnvironment<T> &other) {
+  if (auto var = this->lookup(name)) {
+    other.insert({name, var});
+    this->erase(var);
+  }
+}
+
+template <typename T>
+LocalEnvironment<T>::~LocalEnvironment() = default;
+
+template <typename T> void LocalEnvironment<T>::dump() {
+  llvm::errs() << "{";
+  for (auto &[p, t] : *this) {
+    llvm::errs() << p << " ";
+  }
+  llvm::errs() << "}\n";
+}
 
 /// ===-------------------------------------------------------------------=== //
 /// NestedEnvironment - A nested environment, which is a stack of

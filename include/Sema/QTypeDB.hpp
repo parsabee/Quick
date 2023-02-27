@@ -34,6 +34,7 @@ namespace type {
 class QTypeDB : public std::unordered_map<std::string, std::unique_ptr<QType>> {
   friend StatusOr<compiler::TypeCheckedObject>
   compiler::TypeCheck(compiler::ParsedObject parsedObject);
+protected:
   QTypeDB();
 
 public:

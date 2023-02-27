@@ -63,9 +63,9 @@ public:
 
 inline bool ok(Status status) { return status == Status::OK; }
 
-template<typename T>
-inline bool ok(StatusOr<T> &status) { return status.ok(); }
-
+template <typename T> inline bool ok(const StatusOr<T> &status) {
+  return status.ok();
+}
 
 /// Exists if status is not ok, otherwise returns value
 #define EXIT_ON_ERROR(STATUS_OR)                                               \
@@ -75,6 +75,14 @@ inline bool ok(StatusOr<T> &status) { return status.ok(); }
       std::exit(static_cast<int>(tmp.status()));                               \
     return tmp.ValueOrDie();                                                   \
   }()
+
+/// Exists if status is not ok, otherwise returns value
+#define RETURN_ON_ERROR(STATUS)                                                \
+  do {                                                                         \
+    auto tmp = (STATUS);                                                       \
+    if (!ok(tmp))                                                              \
+      return tmp;                                                              \
+  } while (false)
 
 } // namespace quick
 

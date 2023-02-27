@@ -12,12 +12,8 @@
 #ifndef QUICK_UTILS_UTILS_HPP
 #define QUICK_UTILS_UTILS_HPP
 
-#include "AST/AST.hpp"
-#include "AST/Location.hpp"
-
 #include "llvm/IR/IRBuilder.h"
-
-#include <string>
+#include <assert.h>
 
 namespace llvm {
 
@@ -46,6 +42,14 @@ public:
     Builder.SetCurrentDebugLocation(DbgLoc);
   }
 };
-}
+
+#define ASSERT(OBJECT)                                                         \
+  [&]() {                                                                      \
+    auto *tmp = (OBJECT);                                                      \
+    assert(tmp);                                                               \
+    return tmp;                                                                \
+  }()
+
+} // namespace llvm
 
 #endif // QUICK_UTILS_UTILS_HPP

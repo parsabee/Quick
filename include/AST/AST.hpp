@@ -170,7 +170,8 @@ public:
     FloatLiteral,
     BoolLiteral,
     NothingLiteral,
-    StringLiteral
+    StringLiteral,
+    DataFlowExpression
   };
 
   inline Kind getKind() const { return _kind; }
@@ -180,6 +181,24 @@ protected:
       : ASTNode(loc, (ASTNode::Kind)__id), _kind(kind) {}
 
 private:
+  Kind _kind;
+};
+
+/// ===-------------------------------------------------------------------=== //
+/// DataFlowExpression - describes objects data flow
+/// ===-------------------------------------------------------------------=== //
+class DataFlowExpression : public Expression {
+  __INITIALIZE_NODE_RTTI(DataFlowExpression, Expression);
+public:
+  enum class Kind { Move = __INITIALIZE_KIND, Share };
+  DataFlowExpression(Location loc, Kind kind, std::unique_ptr<Expression> expr)
+      : Expression(loc, Expression::Kind::DataFlowExpression), _kind(kind),
+        _expr(std::move(expr)) {}
+  inline Kind getKind() const { return _kind; }
+  inline const Expression &getExpr() const { return *_expr; };
+
+private:
+  std::unique_ptr<Expression> _expr;
   Kind _kind;
 };
 
